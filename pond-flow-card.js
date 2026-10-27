@@ -39,7 +39,26 @@ function patchNode(current, next) {
   while(current.childNodes.length>wanted.length) current.lastChild.remove();
 }
 class PondFlowCard extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:'open'}); }
+  constructor() { super(); this.attachShadow({mode:'open'}); this.fishSpeeds = new WeakMap(); }
+  connectedCallback() {
+    if (!this.fishSpeedTimer) this.fishSpeedTimer = setInterval(()=>this.updateFishSpeeds(),250);
+  }
+  disconnectedCallback() { clearInterval(this.fishSpeedTimer); this.fishSpeedTimer = null; }
+  updateFishSpeeds(now=performance.now()) {
+    if (document.hidden) return;
+    this.shadowRoot.querySelectorAll('.fish').forEach(fish=>{
+      const swim=fish.querySelector('.fish-swim')?.getAnimations()[0];
+      if (!swim || swim.playState !== 'running') return;
+      let speed=this.fishSpeeds.get(swim);
+      if (!speed) { speed={current:1,target:1,next:now+6000+Math.random()*8000};this.fishSpeeds.set(swim,speed); }
+      if (now>=speed.next) { speed.target=.75+Math.random()*.5;speed.next=now+6000+Math.random()*8000; }
+      speed.current+=(speed.target-speed.current)*.08;
+      // updatePlaybackRate preserves the playhead; changing duration would jump.
+      swim.updatePlaybackRate(speed.current);
+      const name=fish.querySelector('.fish-name-swim')?.getAnimations()[0];
+      if (name && name.playState === 'running') name.updatePlaybackRate(speed.current);
+    });
+  }
   setConfig(config) {
     if (config.fish !== undefined && !Array.isArray(config.fish)) throw new Error('fish skal være en liste med navn og farve.');
     if (config.fish?.some(fish => !fish || typeof fish !== 'object' || Array.isArray(fish))) throw new Error('Hver fisk skal have name og color.');
@@ -121,7 +140,7 @@ class PondFlowCard extends HTMLElement {
       .skimmer-current path{fill:none;stroke:#8ad3dc;stroke-width:3;stroke-linecap:round;opacity:.15}.skimmer-current.moving path{opacity:.9;stroke-dasharray:9 14;animation:intake 1.5s linear infinite}.skimmer-current.moving path:nth-child(2){animation-delay:-.5s}.skimmer-current.moving path:nth-child(3){animation-delay:-1s}@keyframes intake{to{stroke-dashoffset:-46}}
       @container(max-width:560px){header{padding:16px 14px 8px;gap:8px;flex-wrap:wrap}.metrics{padding:10px 14px}.equipment{padding:8px 14px 14px}.controls{grid-template-columns:1fr;padding:4px 14px 16px}.control{flex-wrap:nowrap}.options{justify-content:flex-end}.status{padding:12px 14px}details{padding:0 14px 14px}.metric{padding:10px 8px}.metric strong{font-size:16px}.badge{max-width:100%;overflow-wrap:anywhere}}
       .fountain{display:none}.fountain.running{display:inline}.fountain path{fill:none;stroke:#8ed4e1;stroke-width:3;stroke-linecap:round;stroke-dasharray:5 8;animation:spray 1.2s linear infinite}.fountain path:nth-child(2n){animation-delay:-.6s}.fountain .ripple{fill:none;stroke:#8ed4e1;stroke-width:2;opacity:.6;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes spray{to{stroke-dashoffset:-26}}@keyframes pond-ripple{50%{opacity:.2;stroke-width:4}}
-      .fish-name-swim{animation:fish-name-swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);pointer-events:none}@keyframes fish-name-swim{0%,100%{transform:translateX(50px)}46%,50%{transform:translateX(-60px)}96%{transform:translateX(50px)}}.pond-diagram .fish-name{font-size:17px;font-weight:600;fill:var(--primary-text-color,#e1e8e9);stroke:#183640;stroke-width:3px;paint-order:stroke fill;stroke-linejoin:round}
+      .fish-name-swim{animation:fish-name-swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);pointer-events:none}@keyframes fish-name-swim{0%,100%{transform:translateX(50px)}46%,50%{transform:translateX(-60px)}96%{transform:translateX(50px)}}.pond-diagram .fish-name{font-size:11.3px;font-weight:600;fill:var(--primary-text-color,#e1e8e9);stroke:#183640;stroke-width:2px;paint-order:stroke fill;stroke-linejoin:round}
       .waterfall-water{visibility:hidden}.waterfall-water.running{visibility:visible}.waterfall-water .flow{stroke:#c1e7ed;stroke-width:3}.waterfall-splash{fill:none;stroke:#a3d6df;stroke-width:2;animation:waterfall-splash 1.6s ease-in-out infinite}.waterfall-ripple{fill:none;stroke:#8fc6d1;stroke-width:1.5;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes waterfall-splash{50%{opacity:.3}}
       @media(prefers-reduced-motion:reduce){.fish-swim,.fish-name-swim,.fish-bubble,.skimmer-current.moving path,.fountain path,.fountain .ripple,.waterfall-splash,.waterfall-ripple{animation:none}}
     </style>

@@ -160,6 +160,7 @@ try {
   assert.match(await page.locator('.fish-name').first().textContent(),/Guld/);
   assert.equal(await page.locator('.fish-legend').count(),0);
   assert.equal(await page.locator('.fish-name img').count(),0);
+  assert.equal(await page.locator('.fish-name').first().evaluate(el=>getComputedStyle(el).fontSize),'11.3px');
   assert.equal(await page.locator('.fish[data-section="fish-gold"] path').first().getAttribute('fill'),'#d8a657');
   assert.equal(await page.locator('.fish[data-section="fish-test"] path').first().getAttribute('fill'),'#c49a72');
   const bubbleContinuity=await page.evaluate(async()=>{
@@ -226,5 +227,38 @@ try {
   await page.screenshot({path:'preview-many-fish.png',fullPage:true});
   await page.setViewportSize({width:360,height:900});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth),true);
+  const speedVariation=await page.evaluate(async()=>{
+    const card=document.querySelector('pond-flow-card');
+    card.setConfig({demo:true,fish:[{name:'Guld'},{name:'Perle'}]});
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    clearInterval(card.fishSpeedTimer);card.fishSpeedTimer=null;
+    card.fishSpeeds=new WeakMap();
+    const swimmers=[...card.shadowRoot.querySelectorAll('.fish-swim')].map(el=>el.getAnimations()[0]);
+    const names=[...card.shadowRoot.querySelectorAll('.fish-name-swim')].map(el=>el.getAnimations()[0]);
+    const before=swimmers.map(animation=>animation.currentTime);
+    const originalRandom=Math.random;
+    try {
+      Math.random=()=>.5;card.updateFishSpeeds(0);
+      let choice=0;
+      const choices=[.9,.5,.1,.5];
+      Math.random=()=>choices[choice++%choices.length];
+      for(let i=0;i<12;i++) card.updateFishSpeeds(11000+i*250);
+    } finally {Math.random=originalRandom;}
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const rates=swimmers.map(animation=>animation.playbackRate);
+    const result={
+      independent:rates[0]>1 && rates[1]<1,
+      gentle:rates.every(rate=>rate>.75 && rate<1.25),
+      noJump:swimmers.every((animation,i)=>animation.currentTime>=before[i] && animation.currentTime-before[i]<200),
+      namesFollow:names.every((animation,i)=>animation.playbackRate===rates[i])
+    };
+    card.connectedCallback();
+    card.remove();
+    result.cleanedUp=card.fishSpeedTimer===null;
+    document.body.append(card);
+    result.reconnected=Boolean(card.fishSpeedTimer);
+    return result;
+  });
+  assert.deepEqual(speedVariation,{independent:true,gentle:true,noJump:true,namesFollow:true,cleanedUp:true,reconnected:true});
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }
