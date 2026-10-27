@@ -1,0 +1,18 @@
+type: custom:pond-flow-card
+title: Dammen
+entity_prefix: garden_pond_controller
+fish:
+  - id: guld
+    name: Guld
+    color: '#d8a657'
+    size: large
+  - id: perle
+    name: Perle
+    color: '#e0ddd4'
+    size: medium
+  - id: solvflokken
+    name: Sølvflokken
+    type: school
+    color: '#bfcfd5'
+    size: small
+    speed: 0.8

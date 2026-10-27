@@ -272,5 +272,32 @@ try {
     return result;
   });
   assert.deepEqual(speedVariation,{independent:true,gentle:true,noJump:true,namesFollow:true,staggered:true,cleanedUp:true,reconnected:true});
+  const fishSizesAndSchool=await page.evaluate(async()=>{
+    const card=document.querySelector('pond-flow-card');
+    card.style.width='760px';
+    card.setConfig({demo:true,fish:[
+      {id:'small',name:'Lille',size:'small'},
+      {id:'medium',name:'Mellem',size:'medium'},
+      {id:'large',name:'Stor',size:'large'},
+      {id:'school',name:'Sølvflokken',type:'school',size:'small',color:'#bfcfd5',speed:.8}
+    ]});
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const school=card.shadowRoot.querySelector('.fish-school');
+    const animation=school.querySelector('.fish-swim').getAnimations()[0];
+    const sizes=['small','medium','large'].map(id=>card.shadowRoot.querySelector(`[data-section="fish-${id}"] .fish-body`).transform.baseVal.consolidate().matrix.a);
+    const result={sizes:sizes.map(size=>Number(size.toFixed(2))),schoolMembers:school.querySelectorAll('.fish-body').length,schoolAnimations:school.querySelectorAll('.fish-swim').length,schoolNames:school.querySelectorAll('.fish-name').length,
+      sameColor:[...school.querySelectorAll('.fish-body path')].every(path=>path.getAttribute('fill')==='#bfcfd5'),
+      speed:animation.effect.getTiming().duration,
+      depth:card.pondDepth()};
+    card.hass={...card._hass,states:{...(card._hass?.states || {}),'sensor.garden_pond_controller_dam_temperatur_bund':{state:'14',attributes:{}}}};
+    result.preserved=school.querySelector('.fish-swim').getAnimations()[0]===animation;
+    let rejectsInvalid=false;
+    try{card.setConfig({fish:[{size:'giant'}]});}catch{rejectsInvalid=true;}
+    result.rejectsInvalid=rejectsInvalid;
+    return result;
+  });
+  assert.deepEqual(fishSizesAndSchool,{sizes:[.55,.75,1],schoolMembers:5,schoolAnimations:1,schoolNames:1,sameColor:true,speed:42500,depth:96,preserved:true,rejectsInvalid:true});
+  await page.setViewportSize({width:820,height:1200});
+  await page.screenshot({path:'preview-school.png',fullPage:true});
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }

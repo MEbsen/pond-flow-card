@@ -1,5 +1,31 @@
 # Pond Flow Card
 
+## Størrelser og fiskeflokke (v0.6.0)
+
+Hver post i `fish` kan have `size: small`, `medium` eller `large`. Large er den oprindelige størrelse, medium er 75 %, og small er 55 %. Enkeltfisk er som standard large, så eksisterende YAML virker videre.
+
+Brug `type: school` for fem fisk i én formation med fælles navn, id, farve og hastighed. Flokken har ét fælles svømmeforløb og ét hastighedsskift ad gangen. Flokke er som standard small og får deres egen plads i dybden. Valgfri `speed` mellem 0.5 og 1.5 ændrer grundtempoet, hvor 1 er normalt. Det gælder både fisk og flokke; den bløde tilfældige fartvariation sker oven i grundtempoet.
+
+```yaml
+type: custom:pond-flow-card
+entity_prefix: garden_pond_controller
+fish:
+  - id: guld
+    name: Guld
+    color: '#d8a657'
+    size: large
+  - id: perle
+    name: Perle
+    color: '#e0ddd4'
+    size: medium
+  - id: solvflokken
+    name: Sølvflokken
+    type: school
+    color: '#bfcfd5'
+    size: small
+    speed: 0.8
+```
+
 Version 0.5.5 gør hastighedsforskellene tydeligere: hver fisk har sin egen målhastighed og sit eget tilfældige skiftetidspunkt. Farten glider mellem 50–150 % af fiskens rolige grundtempo, og nye mål er mindst 25 procentpoint fra det forrige. De første skift er spredt over 1,5–8 sekunder, derefter vælger hver fisk selv næste skift efter 4–12 sekunder. Navnene følger stadig bevægelsen uden hop.
 
 Version 0.5.4 gør fiskenavnene cirka 2/3 af deres tidligere størrelse. Hver fisk vælger uafhængigt en ny målhastighed hvert 6.–14. sekund og glider roligt over mod den (75–125 % af grundhastigheden). Afspilningshastigheden ændres uden at nulstille bevægelsen, og navnet følger samme hastighed. Timeren stoppes, når kortet fjernes.
