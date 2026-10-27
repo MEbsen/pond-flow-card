@@ -1,5 +1,15 @@
 # Pond Flow Card
 
+Version 0.2.1 matcher controllerens faktiske `koerer`-entiteter, viser samlede driftstimer og tilføjer skimmerstatus, skimmertilstand, skimmerplan og alarmer. Sæsonvalg, påfyldning og isfriholderens betjening skjules, når controlleren ikke har disse funktioner. Indstillinger og ugeplan kan åbnes i HA via kortets foldbare indstillingsfelt.
+
+Med den aktuelle controller er denne minimumskonfiguration nok (fjern gamle manuelle entity-id'er for at bruge automatisk registrering):
+
+```yaml
+type: custom:pond-flow-card
+title: Dammen
+entity_prefix: garden_pond_controller
+```
+
 Version 0.2.0 afrunder målinger til én decimal, viser værdier ved udstyret, giver direkte Auto/Til/Fra-knapper og åbner HA-detaljer ved tryk på målinger og status. Vandflow og pumpens rotor animeres ved aktiv pumpestatus. Uændrede HA-opdateringer genstarter ikke animationen.
 
 Entiteter findes automatisk under `garden_pond_controller` ud fra ESPHome-navnene. Brug `entity_prefix` for et andet præfiks og `entities` til manuelle id'er. Under **Entiteter og forbindelser** vises de id'er, kortet bruger, samt manglende entiteter. En eksplicit entitet, der findes, har altid forrang. Manglende id'er kan erstattes af et entydigt match på samme enheds præfiks og friendly name.

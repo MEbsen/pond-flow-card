@@ -26,6 +26,10 @@ Første kortversion er implementeret som `pond-flow-card.js` med SVG-diagram og 
 
 ## Eksisterende udstyr
 
+### Aktuel controller i HA – bekræftet 27. oktober 2026
+
+Brugerens entity-liste viser filterpumpe, luftpumpe, UV-C og skimmer med ugeplan/interval. Driftstimer findes som samlede tællere. Der er ingen entiteter til sæsonvalg, automatisk påfyldning eller isfriholder i denne liste. Den lokale `pond-controller (3).yaml` afspejler derfor ikke den aktuelle firmware fuldt ud og må ikke bruges som eneste grundlag for kortets funktioner eller relætildeling. Det aktuelle kort understøtter de bekræftede entiteter; øvrige hardwareforhold er fortsat uafklarede.
+
 ### Filterpumpe og trykfilter med UV-C
 
 Brugeren har bekræftet, at opstillingen svarer til denne principtegning:

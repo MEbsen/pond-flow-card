@@ -1,5 +1,6 @@
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const labels = {temp_bottom:'Dam Temperatur Bund',temp_surface:'Dam Temperatur Overflade',water_level:'Vandstand',status:'Dam status',last_event:'Seneste hændelse',pump_running:'Filterpumpe kører',uv_running:'UV-C tændt',aerator_running:'Luftpumpe kører',fill_running:'Påfyldning åben',season:'Sæson',pump_mode:'Filterpumpe tilstand',uv_mode:'UV-C tilstand',aerator_mode:'Luftpumpe tilstand',fill_mode:'Påfyldning tilstand',pump_hours:'Filterpumpe drift i dag',uv_hours:'UV-C drift i dag',fill_minutes:'Påfyldningstid i dag'};
+const labels = {temp_bottom:'Dam Temperatur Bund',temp_surface:'Dam Temperatur Overflade',water_level:'Vandstand',status:'Dam status',last_event:'Seneste hændelse',pump_running:'Filterpumpe koerer',uv_running:'UV-C taendt',aerator_running:'Luftpumpe koerer',skimmer_running:'Skimmer koerer',skimmer_mode:'Skimmer tilstand',skimmer_plan:'Skimmer plan',season:'Sæson',pump_mode:'Filterpumpe tilstand',uv_mode:'UV-C tilstand',aerator_mode:'Luftpumpe tilstand',pump_hours:'Filterpumpe drift total',uv_hours:'UV-C drift total',aerator_hours:'Luftpumpe drift total',skimmer_hours:'Skimmer drift total',skimmer_locked:'Skimmer sikkerhedsspaerret',low_water:'Alarm lav vandstand',level_fault:'Fejl niveausensor',temp_fault:'Fejl temperatursensor',relay_fault:'Fejl relaemodul',settings_fault:'Fejl indstillinger',schedule_fault:'Fejl ugeplan ur',uv_service:'UV-C service paakraevet'};
+const binaryKeys = new Set(['skimmer_locked','low_water','level_fault','temp_fault','relay_fault','settings_fault','schedule_fault','uv_service']);
 const slug = value => value.toLowerCase().replaceAll('æ','ae').replaceAll('ø','o').replaceAll('å','a').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
 class PondFlowCard extends HTMLElement {
   constructor() { super(); this.attachShadow({mode:'open'}); }
@@ -7,7 +8,8 @@ class PondFlowCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (!this.config) return;
-    const signature = JSON.stringify(Object.keys({...labels,...this.config.entities}).map(key => this.state(key)));
+    const prefix = this.config.entity_prefix || 'garden_pond_controller';
+    const signature = JSON.stringify([Object.keys({...labels,...this.config.entities}).map(key => this.state(key)),Object.entries(hass.states).filter(([id]) => id.startsWith(`number.${prefix}_`) || id.startsWith(`switch.${prefix}_`))]);
     if (signature !== this.signature) { this.signature = signature; this.render(); }
   }
   getCardSize() { return 7; }
@@ -16,7 +18,7 @@ class PondFlowCard extends HTMLElement {
     if (explicit && this._hass?.states[explicit]) return explicit;
     if (!labels[key]) return explicit;
     const prefix = this.config.entity_prefix || 'garden_pond_controller';
-    const domain = key.endsWith('_mode') || key === 'season' ? 'select' : key.endsWith('_running') ? 'binary_sensor' : 'sensor';
+    const domain = key.endsWith('_mode') || key === 'season' || key === 'skimmer_plan' ? 'select' : key.endsWith('_running') || binaryKeys.has(key) ? 'binary_sensor' : 'sensor';
     const expected = `${domain}.${prefix}_${slug(labels[key])}`;
     if (this._hass?.states[expected]) return expected;
     const matches = Object.entries(this._hass?.states || {}).filter(([id,s]) => id.startsWith(`${domain}.${prefix}_`) && (slug(s.attributes?.friendly_name || '') === slug(labels[key]) || slug(s.attributes?.friendly_name || '').endsWith('_'+slug(labels[key]))));
@@ -43,7 +45,7 @@ class PondFlowCard extends HTMLElement {
     const demo = this.config.demo === true;
     const active = demo || this.running('pump_running');
     const val = (key, sample) => esc(demo ? sample : this.value(key));
-    const controls = [['season','Sæson'],['pump_mode','Filterpumpe'],['uv_mode','UV-C'],['aerator_mode','Beluftning'],['icefree_mode','Isfriholder'],['fill_mode','Påfyldning']];
+    const controls = [['season','Sæson'],['pump_mode','Filterpumpe'],['uv_mode','UV-C'],['aerator_mode','Beluftning'],['skimmer_mode','Skimmer'],['skimmer_plan','Skimmerplan'],['icefree_mode','Isfriholder']].filter(([key]) => demo || this.state(key));
     const operating = key => demo ? 'Kører' : !this.state(key) || ['unknown','unavailable'].includes(this.state(key).state) ? 'Ukendt' : this.running(key) ? 'Kører' : 'Stoppet';
     this.shadowRoot.innerHTML = `
     <style>
@@ -62,6 +64,7 @@ class PondFlowCard extends HTMLElement {
         <path d="M25 180 Q160 130 340 160 L420 180 Q485 95 555 76 Q610 80 625 175 L695 180 L695 352 L25 352Z" fill="url(#land)"/>
         <path d="M35 190 Q200 165 435 191 L420 270 Q385 338 230 337 Q85 330 50 267Z" fill="url(#water)" stroke="#72b9bb" stroke-width="2"/>
         <path d="M35 190 Q200 165 435 191" stroke="#98e4df" fill="none" stroke-width="3"/>
+        <g data-info="skimmer_running" aria-label="Skimmerstatus"><rect x="380" y="178" width="36" height="25" rx="3" fill="#254451" stroke="#7daeb1"/><path class="flow ${demo || this.running('skimmer_running') ? 'active' : ''}" d="M343 194H393"/><text x="360" y="226">Skimmer</text></g>
         <path d="M600 131 L568 104 L540 119 L551 139 L515 148 L525 170 L474 183 L453 205 L417 211" fill="none" stroke="#8ab8ab" stroke-width="24" stroke-linejoin="round"/>
         <path class="flow ${active ? 'active' : ''}" d="M600 131 L568 104 L540 119 L551 139 L515 148 L525 170 L474 183 L453 205 L417 211"/>
         <path d="M197 283 L425 283 L478 241 L559 241" fill="none" stroke="#15313b" stroke-width="14"/>
@@ -85,17 +88,20 @@ class PondFlowCard extends HTMLElement {
         <text data-info="uv_running" x="558" y="359">UV-C: ${esc(operating('uv_running'))}</text>
         <text x="44" y="375" style="font-size:11px;fill:#95b5bd">${demo ? 'Illustration med eksempeldata' : 'Animation følger pumpens statusentitet · gennemstrømning er ikke målt'}</text>
       </svg>
-      <div class="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Beluftning',null],['fill_running','Påfyldning','fill_minutes']].map(([key,label,hours]) => `<button data-info="${key}"><small>${label}</small><strong>${esc(operating(key))}${hours ? ' · '+val(hours,'0,8 h') : ''}</strong></button>`).join('')}</div>
+      <div class="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Beluftning','aerator_hours'],['skimmer_running','Skimmer','skimmer_hours']].map(([key,label,hours]) => `<button data-info="${key}"><small>${label}</small><strong>${esc(operating(key))} · ${val(hours,'2,5 h')} i alt</strong></button>`).join('')}</div>
+      <div class="equipment">${[...binaryKeys].filter(key => this.state(key)).map(key => `<button data-info="${key}" ${this.running(key) ? 'class="error"' : ''}><small>${esc(labels[key])}</small><strong>${['unknown','unavailable'].includes(this.state(key).state) ? 'Ukendt' : this.running(key) ? 'Aktiv' : 'OK'}</strong></button>`).join('')}</div>
       <div class="controls">${controls.map(([key,label]) => {
         const state = this.state(key);
-        const options = state?.attributes.options || (key === 'season' ? ['Auto','Sommer','Vinter'] : ['Auto','Til','Fra']);
+        const options = state?.attributes.options || (key === 'season' ? ['Auto','Sommer','Vinter'] : key === 'skimmer_plan' ? [] : ['Auto','Til','Fra']);
         const disabled = demo || !state || ['unavailable','unknown'].includes(state.state);
         return `<div class="control"><span>${label}</span><div class="options">${!state && !demo ? '<small>Ikke tilkoblet</small>' : options.map(option => `<button data-key="${key}" data-option="${esc(option)}" aria-label="${label}: ${esc(option)}" aria-pressed="${option === state?.state}" ${disabled ? 'disabled' : ''}>${esc(option)}</button>`).join('')}</div></div>`;
       }).join('')}</div>
+      <details><summary>Indstillinger og skimmerens ugeplan</summary><div class="equipment">${Object.entries(this._hass?.states || {}).filter(([id]) => ['number','switch'].some(domain => id.startsWith(`${domain}.${this.config.entity_prefix || 'garden_pond_controller'}_`))).map(([id,s]) => `<button data-entity="${esc(id)}"><small>${esc(s.attributes.friendly_name || id)}</small><strong>${esc(s.state)} ${esc(s.attributes.unit_of_measurement || '')}</strong></button>`).join('')}</div><span class="note">Tryk for at åbne og ændre indstillingen i Home Assistant.</span></details>
       <details><summary>Entiteter og forbindelser</summary>${Object.keys(labels).map(key => `<div>${esc(labels[key])}: ${this.state(key) ? '✓' : 'Mangler'} <code>${esc(this.entity(key))}</code></div>`).join('')}</details>
       <div class="status">Seneste hændelse: ${val('last_event','Filterpumpe startet automatisk')}<br><span class="note">${demo ? 'Demo betjener ikke dit udstyr.' : 'Tryk på en måling eller udstyrsstatus for detaljer. Relæstatus bekræfter ikke fysisk drift.'}</span>${this.error ? `<div class="error" role="alert">${esc(this.error)}</div>` : ''}</div>
     </ha-card>`;
     this.shadowRoot.querySelectorAll('[data-key]').forEach(el => el.addEventListener('click', () => this.change(el.dataset.key,el.dataset.option)));
+    this.shadowRoot.querySelectorAll('[data-entity]').forEach(el => el.addEventListener('click', () => { if (!demo) this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:el.dataset.entity},bubbles:true,composed:true})); }));
     this.shadowRoot.querySelectorAll('[data-info]').forEach(el => {
       const open = () => { const id = this.entity(el.dataset.info); if (!demo && this.state(el.dataset.info)) this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:id},bubbles:true,composed:true})); };
       el.addEventListener('click',open);

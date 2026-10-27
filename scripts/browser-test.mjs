@@ -42,5 +42,27 @@ try {
   });
   assert.equal(await page.locator('[data-key]:enabled').count(),0);
   assert.equal(await page.locator('path.active').count(),0);
+  await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    const prefix='garden_pond_controller';
+    const states={};
+    for(const name of ['filterpumpe_koerer','luftpumpe_koerer','skimmer_koerer','uv_c_taendt']) states[`binary_sensor.${prefix}_${name}`]={state:name==='luftpumpe_koerer'?'off':'on',attributes:{}};
+    for(const name of ['filterpumpe','luftpumpe','skimmer','uv_c']) {
+      states[`select.${prefix}_${name}_tilstand`]={state:'Auto',attributes:{options:['Auto','Til','Fra']}};
+      states[`sensor.${prefix}_${name}_drift_total`]={state:'2.495849609375',attributes:{unit_of_measurement:'h'}};
+    }
+    states[`select.${prefix}_skimmer_plan`]={state:'Ugeplan',attributes:{options:['Ugeplan','Interval']}};
+    states[`switch.${prefix}_skimmer_ugeplan_mandag`]={state:'on',attributes:{friendly_name:'Skimmer ugeplan mandag'}};
+    card.setConfig({entities:{pump_running:`binary_sensor.${prefix}_filterpumpe_korer`}});
+    card.hass={states,callService:async(...args)=>window.calls.push(args)};
+  });
+  assert.equal(await page.locator('path.active').count(),3);
+  assert.match(await page.locator('.equipment').first().textContent(),/2,5 h i alt/);
+  assert.equal(await page.locator('[data-key="season"]').count(),0);
+  assert.equal(await page.locator('[data-key="fill_mode"]').count(),0);
+  await page.locator('[data-key="skimmer_mode"][data-option="Til"]').click();
+  assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.garden_pond_controller_skimmer_tilstand',option:'Til'}]);
+  await page.locator('[data-key="skimmer_plan"][data-option="Interval"]').click();
+  assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.garden_pond_controller_skimmer_plan',option:'Interval'}]);
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }
