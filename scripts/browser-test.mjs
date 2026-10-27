@@ -296,7 +296,22 @@ try {
     result.rejectsInvalid=rejectsInvalid;
     return result;
   });
-  assert.deepEqual(fishSizesAndSchool,{sizes:[.55,.75,1],schoolMembers:5,schoolAnimations:1,schoolNames:1,sameColor:true,speed:42500,depth:96,preserved:true,rejectsInvalid:true});
+  assert.deepEqual(fishSizesAndSchool,{sizes:[.55,.75,1],schoolMembers:5,schoolAnimations:1,schoolNames:1,sameColor:true,speed:42500,depth:48,preserved:true,rejectsInvalid:true});
+  const compactSchools=await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    card.setConfig({demo:true,fish:Array.from({length:18},(_,i)=>({id:'unit-'+i,type:'school',size:'large',name:'Flok '+i}))});
+    const bounds=fish=>{
+      const points=[...fish.querySelectorAll('.fish-body')].flatMap(body=>{
+        const b=body.getBBox(),m=body.transform.baseVal.consolidate().matrix;
+        return [[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].map(([x,y])=>({x:m.a*x+m.c*y+m.e,y:m.b*x+m.d*y+m.f}));
+      });
+      return {width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),height:Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))};
+    };
+    return {units:card.shadowRoot.querySelectorAll('.fish').length,members:card.shadowRoot.querySelectorAll('.fish-body').length,
+      depth:card.pondDepth(),levels:new Set(card.fish().map(fish=>fish.y)).size,
+      withinLarge:[...card.shadowRoot.querySelectorAll('.fish')].every(fish=>{const b=bounds(fish);return b.width<=47 && b.height<=32;})};
+  });
+  assert.deepEqual(compactSchools,{units:18,members:90,depth:240,levels:6,withinLarge:true});
   await page.setViewportSize({width:820,height:1200});
   await page.screenshot({path:'preview-school.png',fullPage:true});
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');

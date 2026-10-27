@@ -1,10 +1,12 @@
 # Pond Flow Card
 
+Version 0.6.1 gør flokke kompakte: fem fisk fylder tilsammen højst én large-enkeltfisk. Hver fisk eller flok tæller som én plads i layoutet, så 18 enheder fordeles på seks svømmehøjder, også når alle er flokke. `size` angiver hele flokkens størrelse; standarden er large for både enkeltfisk og flokke. Navnet står med samme afstand som ved en enkeltfisk.
+
 ## Størrelser og fiskeflokke (v0.6.0)
 
 Hver post i `fish` kan have `size: small`, `medium` eller `large`. Large er den oprindelige størrelse, medium er 75 %, og small er 55 %. Enkeltfisk er som standard large, så eksisterende YAML virker videre.
 
-Brug `type: school` for fem fisk i én formation med fælles navn, id, farve og hastighed. Flokken har ét fælles svømmeforløb og ét hastighedsskift ad gangen. Flokke er som standard small og får deres egen plads i dybden. Valgfri `speed` mellem 0.5 og 1.5 ændrer grundtempoet, hvor 1 er normalt. Det gælder både fisk og flokke; den bløde tilfældige fartvariation sker oven i grundtempoet.
+Brug `type: school` for fem fisk i én kompakt formation med fælles navn, id, farve og hastighed. Flokken har ét fælles svømmeforløb og ét hastighedsskift ad gangen og bruger samme plads som en enkeltfisk. Valgfri `speed` mellem 0.5 og 1.5 ændrer grundtempoet, hvor 1 er normalt. Det gælder både fisk og flokke; den bløde tilfældige fartvariation sker oven i grundtempoet.
 
 ```yaml
 type: custom:pond-flow-card

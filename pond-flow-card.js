@@ -81,27 +81,27 @@ class PondFlowCard extends HTMLElement {
     let slot=0;
     return (this.config.fish ?? [{id:'default-1',color:'#c49a72'},{id:'default-2',color:'#9aa99d'}]).map((fish,index)=>{
       const school=fish.type==='school';
-      if(school) slot=Math.ceil(slot/3)*3;
       const row=Math.floor(slot/3),column=slot%3;
-      slot+=school?6:1;
+      slot++;
       return {
       id:String(fish.id ?? index),name:String(fish.name ?? ''),
       color:typeof fish.color === 'string' && CSS.supports('color',fish.color) ? fish.color : '#c49a72',
-      school,scale:({small:.55,medium:.75,large:1})[fish.size || (school?'small':'large')],row,rowSpan:school?2:1,
-      x:school?425:300+column*125,y:420+row*48+(school?12:0),duration:(22+(index%5)*4)/(fish.speed ?? 1),delay:-(index*7.3)%26
+      school,scale:({small:.55,medium:.75,large:1})[fish.size || 'large'],row,rowSpan:1,
+      x:300+column*125,y:420+row*48,duration:(22+(index%5)*4)/(fish.speed ?? 1),delay:-(index*7.3)%26
     };});
   }
   pondDepth() { return Math.max(0,...this.fish().map(fish=>fish.row+fish.rowSpan-1))*48; }
   fishBodies(fish) {
-    const positions=fish.school?[[0,0],[-34,-14],[34,-14],[-34,14],[34,14]]:[[0,0]];
-    return positions.map(([x,y])=>`<g class="fish-body" transform="translate(${x} ${y}) scale(${fish.scale})"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="${esc(fish.color)}" opacity=".85"/><path d="M-3-6L5-13L9-6" fill="${esc(fish.color)}" opacity=".65"/></g>`).join('');
+    const positions=fish.school?[[0,0],[-12,-6],[12,-6],[-12,6],[12,6]]:[[0,0]];
+    const scale=fish.scale*(fish.school ? .45 : 1);
+    return positions.map(([x,y])=>`<g class="fish-body" transform="translate(${x*fish.scale} ${y*fish.scale}) scale(${scale})"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="${esc(fish.color)}" opacity=".85"/><path d="M-3-6L5-13L9-6" fill="${esc(fish.color)}" opacity=".65"/></g>`).join('');
   }
   fishMarkup() {
     return this.fish().map(fish => `<g class="fish${fish.school?' fish-school':''}" data-section="fish-${esc(fish.id)}" role="img" aria-label="${esc(fish.name || 'Fisk')}${fish.school?' · flok på 5 fisk':''}" transform="translate(${fish.x} ${fish.y})" style="--swim-duration:${fish.duration}s;--swim-delay:${fish.delay}s;--bubble-rise:${362-fish.y}px">
       <title>${esc(fish.name || 'Fisk')}</title><g class="fish-swim">
       ${this.fishBodies(fish)}
       ${this.config.fish_bubbles === false ? '' : '<g class="fish-bubbles" aria-hidden="true"><circle class="fish-bubble" cx="-23" cy="-2" r="2.5"/><circle class="fish-bubble" cx="-23" cy="-2" r="1.8"/><circle class="fish-bubble" cx="-23" cy="-2" r="2"/></g>'}
-      </g>${this.config.fish_names === false || !fish.name ? '' : `<g class="fish-name-swim" aria-hidden="true"><text class="fish-name" x="0" y="${fish.school?44:25}" text-anchor="middle">${esc(fish.name)}</text></g>`}</g>`).join('');
+      </g>${this.config.fish_names === false || !fish.name ? '' : `<g class="fish-name-swim" aria-hidden="true"><text class="fish-name" x="0" y="25" text-anchor="middle">${esc(fish.name)}</text></g>`}</g>`).join('');
   }
   set hass(hass) {
     this._hass = hass;
