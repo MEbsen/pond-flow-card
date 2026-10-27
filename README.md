@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.4.1 samler den flydende enhed under **Beluftning**. Den er samme udstyr som controllerens luftpumpe, bekræftet af brugeren. SVG, status og betjening bruger `aerator_running` / `aerator_mode` (HA: `luftpumpe_koerer` / `luftpumpe_tilstand`). Et lille springvand med fire vandstråler og ringe animeres, når status er `on`; ved stop skjules strålerne. Der er ikke længere et separat IceFree-betjeningsfelt.
+
 Version 0.4.0 dæmper diagrammet og bruger HA-temaets baggrund og tekstfarve. Fiskene svømmer roligt frem og tilbage, og skimmeren har tre strømspor, der kun bevæger sig ved aktiv skimmerstatus. Bevægelse respekterer reduceret bevægelse i systemindstillingerne. OK-alarmer er skjult; aktive alarmer og utilgængelig alarmstatus vises.
 
 Kortet følger containerens bredde og understøtter HA Sections-grid med justerbar bredde og højde (standard 12 kolonner/12 rækker, minimum 6 kolonner/8 rækker). Brug dashboardeditorens layoutindstillinger. Ved lav højde kan indholdet rulles i kortet. Masonry beregner kortets højde fra den aktuelle visning.

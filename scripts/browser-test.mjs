@@ -59,6 +59,9 @@ try {
   assert.equal(await page.locator('path.active').count(),3);
   assert.equal(await page.locator('.skimmer-current.moving path').count(),3);
   assert.equal(await page.locator('.fish').count(),2);
+  assert.equal(await page.locator('.fountain.running').count(),0);
+  assert.equal(await page.locator('[data-key="icefree_mode"]').count(),0);
+  assert.equal(await page.locator('svg').textContent().then(text=>text.includes('IceFree')),false);
   assert.match(await page.locator('.equipment').first().textContent(),/2,5 h i alt/);
   assert.equal(await page.locator('[data-key="season"]').count(),0);
   assert.equal(await page.locator('[data-key="fill_mode"]').count(),0);
@@ -97,5 +100,16 @@ try {
   assert.equal(await page.locator('ha-card').evaluate(el=>el.scrollHeight>el.clientHeight),true);
   await page.emulateMedia({reducedMotion:'reduce'});
   assert.equal(await page.locator('.fish-swim').first().evaluate(el=>el.getAnimations().length),0);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    card.hass={...card._hass,states:{...card._hass.states,'binary_sensor.garden_pond_controller_luftpumpe_koerer':{state:'on',attributes:{}}}};
+  });
+  assert.equal(await page.locator('.fountain.running path').count(),4);
+  const sprayBefore=await page.locator('.fountain.running path').first().evaluate(el=>getComputedStyle(el).strokeDashoffset);
+  await page.waitForTimeout(150);
+  assert.notEqual(await page.locator('.fountain.running path').first().evaluate(el=>getComputedStyle(el).strokeDashoffset),sprayBefore);
+  await page.locator('[data-key="aerator_mode"][data-option="Til"]').click();
+  assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.garden_pond_controller_luftpumpe_tilstand',option:'Til'}]);
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }

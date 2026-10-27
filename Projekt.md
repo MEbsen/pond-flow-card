@@ -1,5 +1,9 @@
 # Dam med integration til Home Assistant
 
+## Afklaring: Beluftning er den flydende enhed
+
+Brugeren har nu bekræftet, at den enhed, der tidligere blev omtalt som IceFree 4 Seasons, er samme funktion som controllerens luftpumpe. I HA-kortet kaldes den **Beluftning** og kobles til `binary_sensor.garden_pond_controller_luftpumpe_koerer`, `select.garden_pond_controller_luftpumpe_tilstand` og `sensor.garden_pond_controller_luftpumpe_drift_total`. SVG viser et lille springvand ved aktiv status. Den tidligere antagelse nedenfor om separat isfriholderstyring og en ekstra relæudgang er dermed bortfaldet; produktoplysningerne beholdes som udstyrsreference.
+
 ## Mål: Et samlet kort i Home Assistant
 
 Projektets udstyr, diagrammer og styringslogik samles som grundlag for et HA-kort, der kan vise og styre dammen på samme måde som brugerens ventilationskort. Ventilationskortet skal bruges som reference for udseende, opbygning og betjening. Dets konkrete konfiguration er endnu ikke tilgængelig i denne projektmappe.

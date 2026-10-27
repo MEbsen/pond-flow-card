@@ -47,7 +47,7 @@ class PondFlowCard extends HTMLElement {
     const demo = this.config.demo === true;
     const active = demo || this.running('pump_running');
     const val = (key, sample) => esc(demo ? sample : this.value(key));
-    const controls = [['season','Sæson'],['pump_mode','Filterpumpe'],['uv_mode','UV-C'],['aerator_mode','Beluftning'],['skimmer_mode','Skimmer'],['skimmer_plan','Skimmerplan'],['icefree_mode','Isfriholder']].filter(([key]) => demo || this.state(key));
+    const controls = [['season','Sæson'],['pump_mode','Filterpumpe'],['uv_mode','UV-C'],['aerator_mode','Beluftning'],['skimmer_mode','Skimmer'],['skimmer_plan','Skimmerplan']].filter(([key]) => demo || this.state(key));
     const operating = key => demo ? 'Kører' : !this.state(key) || ['unknown','unavailable'].includes(this.state(key).state) ? 'Ukendt' : this.running(key) ? 'Kører' : 'Stoppet';
     this.shadowRoot.innerHTML = `
     <style>
@@ -59,12 +59,13 @@ class PondFlowCard extends HTMLElement {
       .fish-swim{animation:swim 22s linear infinite;transform-box:view-box;transform-origin:0 0}.fish:nth-of-type(even) .fish-swim{animation-duration:29s;animation-delay:-9s}@keyframes swim{0%{transform:translateX(50px) scaleX(1)}46%{transform:translateX(-60px) scaleX(1)}50%{transform:translateX(-60px) scaleX(-1)}96%{transform:translateX(50px) scaleX(-1)}100%{transform:translateX(50px) scaleX(1)}}
       .skimmer-current path{fill:none;stroke:#8ad3dc;stroke-width:3;stroke-linecap:round;opacity:.15}.skimmer-current.moving path{opacity:.9;stroke-dasharray:9 14;animation:intake 1.5s linear infinite}.skimmer-current.moving path:nth-child(2){animation-delay:-.5s}.skimmer-current.moving path:nth-child(3){animation-delay:-1s}@keyframes intake{to{stroke-dashoffset:-46}}
       @container(max-width:560px){header{padding:16px 14px 8px;gap:8px;flex-wrap:wrap}.metrics{padding:10px 14px}.equipment{padding:8px 14px 14px}.controls{grid-template-columns:1fr;padding:4px 14px 16px}.control{flex-wrap:nowrap}.options{justify-content:flex-end}.status{padding:12px 14px}details{padding:0 14px 14px}.metric{padding:10px 8px}.metric strong{font-size:16px}.badge{max-width:100%;overflow-wrap:anywhere}}
-      @media(prefers-reduced-motion:reduce){.fish-swim,.skimmer-current.moving path{animation:none}}
+      .fountain{display:none}.fountain.running{display:inline}.fountain path{fill:none;stroke:#8ed4e1;stroke-width:3;stroke-linecap:round;stroke-dasharray:5 8;animation:spray 1.2s linear infinite}.fountain path:nth-child(2n){animation-delay:-.6s}.fountain .ripple{fill:none;stroke:#8ed4e1;stroke-width:2;opacity:.6;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes spray{to{stroke-dashoffset:-26}}@keyframes pond-ripple{50%{opacity:.2;stroke-width:4}}
+      @media(prefers-reduced-motion:reduce){.fish-swim,.skimmer-current.moving path,.fountain path,.fountain .ripple{animation:none}}
     </style>
     <ha-card>
       <header><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>
       <div class="metrics"><div class="metric"><small>OVERFLADE</small><strong>${val('temp_surface','23,1 °C')}</strong></div><div class="metric"><small>BUND</small><strong>${val('temp_bottom','23,1 °C')}</strong></div><div class="metric"><small>VANDSTAND</small><strong>${val('water_level','48 cm')}</strong></div></div>
-<svg class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald" xmlns="http://www.w3.org/2000/svg" viewBox="0 175 1200 455">
+<svg class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, beluftning med springvand, filterpumpe, trykfilter med UV-C og vandfald" xmlns="http://www.w3.org/2000/svg" viewBox="0 175 1200 455">
 <defs>
  <pattern id="earth" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M0 22L22 0" stroke="#4a514c" stroke-width=".6"/></pattern>
  <linearGradient id="water" x2="0" y2="1"><stop stop-color="#21444e"/><stop offset="1" stop-color="#183640"/></linearGradient>
@@ -119,12 +120,15 @@ class PondFlowCard extends HTMLElement {
 <path d="M325 361Q260 348 190 365V391"/><path d="M330 373Q260 377 190 365V391"/><path d="M316 387Q250 399 190 370V391"/>
 </g>
 
-<!-- Isfriholder: kendt udstyr, ingen opdigtet elektrisk status. -->
-<g opacity=".68"><ellipse cx="560" cy="361" rx="32" ry="7" fill="#ecefe9" stroke="#697e80"/><rect x="547" y="349" width="26" height="9" rx="3" fill="#8d9f9c"/><path d="M560 370V412" stroke="#789aa1" stroke-dasharray="3 5"/></g>
+<!-- Beluftning uses the controller luftpumpe entities. -->
+<g data-info="aerator_running" aria-label="Beluftning, vis status"><g class="fountain ${demo || this.running('aerator_running') ? 'running' : ''}">
+<path d="M560 351Q538 279 516 353"/><path d="M560 351Q582 279 604 353"/><path d="M560 351Q549 290 536 354"/><path d="M560 351Q571 290 584 354"/>
+<ellipse class="ripple" cx="560" cy="364" rx="46" ry="8"/>
+</g><ellipse cx="560" cy="361" rx="32" ry="7" fill="#ecefe9" stroke="#697e80"/><rect x="547" y="349" width="26" height="9" rx="3" fill="#8d9f9c"/><path d="M560 370V412" stroke="#789aa1" stroke-dasharray="3 5"/></g>
 
 <!-- Etiketter og målepunkter uden krydsende linjer. -->
 <path class="leader" d="M186 347V243H128"/><text x="68" y="218" class="label">Skimmer</text><text x="68" y="238" data-info="skimmer_running" class="small">Overfladerens · ${esc(operating('skimmer_running'))}</text>
-<path class="leader" d="M560 345V235"/><text x="560" y="199" text-anchor="middle" class="label">IceFree 4 Seasons</text><text x="560" y="220" text-anchor="middle" class="small">Vinterudstyr · 5 W · status ikke tilkoblet</text>
+<path class="leader" d="M560 345V235"/><text x="560" y="199" text-anchor="middle" class="label">Beluftning</text><text x="560" y="220" data-info="aerator_running" text-anchor="middle" class="small">${esc(operating('aerator_running'))}</text>
 <text x="893" y="202" class="label">Retur via vandfald</text><text x="893" y="223" class="small">Fra trykfilter til dam</text>
 <path class="leader" d="M1029 433H1094"/><text x="1094" y="405" text-anchor="end" class="label">Trykfilter</text><text x="1094" y="425" data-info="uv_running" text-anchor="end" class="small">UV-C · ${esc(operating('uv_running'))}</text>
 <circle cx="467" cy="391" r="4" fill="#287785"/><path class="leader" d="M474 391H670"/><text x="670" y="415" text-anchor="end" class="small">OVERFLADE</text><text x="670" y="446" data-info="temp_surface" text-anchor="end" class="value">${val('temp_surface','23,1 °C')}</text>
