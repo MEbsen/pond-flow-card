@@ -12,7 +12,8 @@ class PondFlowCard extends HTMLElement {
     const signature = JSON.stringify([Object.keys({...labels,...this.config.entities}).map(key => this.state(key)),Object.entries(hass.states).filter(([id]) => id.startsWith(`number.${prefix}_`) || id.startsWith(`switch.${prefix}_`))]);
     if (signature !== this.signature) { this.signature = signature; this.render(); }
   }
-  getCardSize() { return 7; }
+  getCardSize() { return Math.ceil((this.getBoundingClientRect().height || 650) / 50); }
+  getGridOptions() { return {columns:12,min_columns:6,rows:12,min_rows:8}; }
   entity(key) {
     const explicit = this.config.entities?.[key];
     if (explicit && this._hass?.states[explicit]) return explicit;
@@ -42,6 +43,7 @@ class PondFlowCard extends HTMLElement {
   }
   render() {
     if (!this.config) return;
+    const fishTimes = [...this.shadowRoot.querySelectorAll('.fish-swim')].map(el => el.getAnimations()[0]?.currentTime);
     const demo = this.config.demo === true;
     const active = demo || this.running('pump_running');
     const val = (key, sample) => esc(demo ? sample : this.value(key));
@@ -49,25 +51,29 @@ class PondFlowCard extends HTMLElement {
     const operating = key => demo ? 'Kører' : !this.state(key) || ['unknown','unavailable'].includes(this.state(key).state) ? 'Ukendt' : this.running(key) ? 'Kører' : 'Stoppet';
     this.shadowRoot.innerHTML = `
     <style>
-      :host{display:block}ha-card{display:block;background:var(--ha-card-background,var(--card-background-color,#112631));color:var(--primary-text-color,#edf6f5);border-radius:22px;overflow:hidden;font-family:var(--paper-font-body1_-_font-family,system-ui)}
+      :host{display:block;min-width:0;width:100%;height:100%;container-type:inline-size}ha-card{display:flex;flex-direction:column;box-sizing:border-box;width:100%;height:100%;min-width:0;background:var(--ha-card-background,var(--card-background-color,#1c2328));color:var(--primary-text-color,#edf6f5);border-radius:var(--ha-card-border-radius,16px);overflow:auto;font-family:var(--paper-font-body1_-_font-family,system-ui)}
       header{padding:22px 24px 8px;display:flex;justify-content:space-between;align-items:center}h2{font-size:21px;margin:0}small{opacity:.7}.badge{font-size:12px;padding:7px 10px;border-radius:30px;background:#54887933}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 24px}.metric{background:#7396a415;padding:12px;border-radius:12px}.metric small{display:block;font-size:11px}.metric strong{display:block;margin-top:4px;font-size:18px}
-      svg{width:100%;height:auto;display:block}svg text{font-family:system-ui;fill:#d7e9ed;font-size:13px}.flow{fill:none;stroke:#53d5db;stroke-width:7;stroke-linecap:round;stroke-dasharray:9 14;opacity:.28}.active{opacity:1;animation:water 2s linear infinite}@keyframes water{to{stroke-dashoffset:-46}}@media(prefers-reduced-motion:reduce){.active{animation:none}}
+      svg{width:100%;height:auto;min-height:160px;flex:1 0 auto;display:block}ha-card> :not(svg){flex-shrink:0}svg text{font-family:system-ui;fill:#d7e9ed;font-size:13px}.flow{fill:none;stroke:#53d5db;stroke-width:7;stroke-linecap:round;stroke-dasharray:9 14;opacity:.28}.active{opacity:1;animation:water 2s linear infinite}@keyframes water{to{stroke-dashoffset:-46}}@media(prefers-reduced-motion:reduce){.active{animation:none}}
       .controls{padding:4px 24px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.control{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}.control select{max-width:115px;padding:8px;border:1px solid #7196a550;border-radius:8px;background:var(--card-background-color,#193340);color:inherit}.status{padding:12px 24px;border-top:1px solid #7196a530;font-size:12px;line-height:1.6}.error{color:#f9a99b}.note{opacity:.65;font-size:11px}@media(max-width:420px){.controls{grid-template-columns:1fr}.metrics{padding:12px}.metric strong{font-size:15px}}
       [data-info]{cursor:pointer}.diagram-value{font-size:15px;font-weight:600;fill:#fff}.equipment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 24px 18px}.equipment button{font:inherit;text-align:left;color:inherit;background:#7396a415;border:1px solid #7196a530;border-radius:10px;padding:10px;cursor:pointer}.equipment small{display:block}.equipment strong{font-size:13px}.controls button{padding:9px;border-radius:7px;border:1px solid #7196a550;color:inherit;background:transparent;cursor:pointer}.controls button[aria-pressed=true]{background:#438b8b55}.options{display:flex;gap:4px;flex-wrap:wrap}.control{flex-wrap:wrap}.rotor{transform-box:fill-box;transform-origin:center;animation:spin 1.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.rotor{animation:none}}details{padding:0 24px 16px;font-size:12px;overflow-wrap:anywhere}
+      .fish-swim{animation:swim 22s linear infinite;transform-box:view-box;transform-origin:0 0}.fish:nth-of-type(even) .fish-swim{animation-duration:29s;animation-delay:-9s}@keyframes swim{0%{transform:translateX(50px) scaleX(1)}46%{transform:translateX(-60px) scaleX(1)}50%{transform:translateX(-60px) scaleX(-1)}96%{transform:translateX(50px) scaleX(-1)}100%{transform:translateX(50px) scaleX(1)}}
+      .skimmer-current path{fill:none;stroke:#8ad3dc;stroke-width:3;stroke-linecap:round;opacity:.15}.skimmer-current.moving path{opacity:.9;stroke-dasharray:9 14;animation:intake 1.5s linear infinite}.skimmer-current.moving path:nth-child(2){animation-delay:-.5s}.skimmer-current.moving path:nth-child(3){animation-delay:-1s}@keyframes intake{to{stroke-dashoffset:-46}}
+      @container(max-width:560px){header{padding:16px 14px 8px;gap:8px;flex-wrap:wrap}.metrics{padding:10px 14px}.equipment{padding:8px 14px 14px}.controls{grid-template-columns:1fr;padding:4px 14px 16px}.control{flex-wrap:nowrap}.options{justify-content:flex-end}.status{padding:12px 14px}details{padding:0 14px 14px}.metric{padding:10px 8px}.metric strong{font-size:16px}.badge{max-width:100%;overflow-wrap:anywhere}}
+      @media(prefers-reduced-motion:reduce){.fish-swim,.skimmer-current.moving path{animation:none}}
     </style>
     <ha-card>
       <header><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>
       <div class="metrics"><div class="metric"><small>OVERFLADE</small><strong>${val('temp_surface','23,1 °C')}</strong></div><div class="metric"><small>BUND</small><strong>${val('temp_bottom','23,1 °C')}</strong></div><div class="metric"><small>VANDSTAND</small><strong>${val('water_level','48 cm')}</strong></div></div>
 <svg class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald" xmlns="http://www.w3.org/2000/svg" viewBox="0 175 1200 455">
 <defs>
- <pattern id="earth" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M0 22L22 0" stroke="#b9b6ac" stroke-width=".6"/></pattern>
- <linearGradient id="water" x2="0" y2="1"><stop stop-color="#d6e9ec"/><stop offset="1" stop-color="#a7cbd2"/></linearGradient>
+ <pattern id="earth" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M0 22L22 0" stroke="#4a514c" stroke-width=".6"/></pattern>
+ <linearGradient id="water" x2="0" y2="1"><stop stop-color="#21444e"/><stop offset="1" stop-color="#183640"/></linearGradient>
  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1L8 5L0 9" fill="none" stroke="#287785" stroke-width="1.7"/></marker>
- <style>.pond-diagram text{font-family:Segoe UI,Arial,sans-serif;fill:#263d43}.label{font-size:17px;font-weight:600}.small{font-size:13px;fill:#63777b}.value{font-size:25px;font-weight:600}.leader{fill:none;stroke:#86979a;stroke-width:1}.pipe{fill:none;stroke:#405a61;stroke-width:12;stroke-linejoin:round;stroke-linecap:round}.flow{fill:none;stroke:#5baebd;stroke-width:3;stroke-dasharray:7 9;opacity:.3}.frame{fill:#f9faf7;stroke:#d8dfdb;stroke-width:1}.flow.active{opacity:1}.fish{pointer-events:none}</style>
+ <style>.pond-diagram text{font-family:Segoe UI,Arial,sans-serif;fill:var(--primary-text-color,#e1e8e9)}.label{font-size:17px;font-weight:600}.small{font-size:13px;fill:#63777b}.value{font-size:25px;font-weight:600}.leader{fill:none;stroke:#86979a;stroke-width:1}.pipe{fill:none;stroke:#405a61;stroke-width:12;stroke-linejoin:round;stroke-linecap:round}.flow{fill:none;stroke:#5baebd;stroke-width:3;stroke-dasharray:7 9;opacity:.3}.frame{fill:#f9faf7;stroke:#d8dfdb;stroke-width:1}.flow.active{opacity:1}.fish{pointer-events:none}</style>
 </defs>
-<rect width="1200" height="760" rx="24" fill="#f4f5f0"/>
+<rect width="1200" height="760" rx="24" fill="var(--ha-card-background,var(--card-background-color,#1c2328))"/>
 <!-- Tydeligt tværsnit: jord, bassinfolie og vand. -->
-<path d="M50 342H135L177 485Q192 551 288 556H584Q681 553 714 475L755 342H1150V608H50Z" fill="#d9d6cb"/>
+<path d="M50 342H135L177 485Q192 551 288 556H584Q681 553 714 475L755 342H1150V608H50Z" fill="#303635"/>
 <path d="M50 342H135L177 485Q192 551 288 556H584Q681 553 714 475L755 342H1150V608H50Z" fill="url(#earth)"/>
 <path d="M135 342L177 485Q192 551 288 556H584Q681 553 714 475L755 342" fill="none" stroke="#586663" stroke-width="8"/>
 <path d="M141 362H748L711 474Q679 547 584 550H288Q198 546 182 483Z" fill="url(#water)"/>
@@ -76,11 +82,11 @@ class PondFlowCard extends HTMLElement {
 
 <!-- Beplantning, sparsomt og uden illustrationseffekter. -->
 <g fill="none" stroke="#738a70" stroke-width="3" stroke-linecap="round"><path d="M96 337Q71 304 74 276M96 337Q101 294 113 267M96 337Q88 294 92 255M1043 336Q1025 310 1030 289M1043 336Q1055 309 1057 282"/></g>
-<g fill="#b3b9a8" stroke="#8f9b89"><ellipse cx="91" cy="341" rx="27" ry="9"/><ellipse cx="1081" cy="338" rx="31" ry="10"/></g>
+<g fill="#596c57" stroke="#8f9b89"><ellipse cx="91" cy="341" rx="27" ry="9"/><ellipse cx="1081" cy="338" rx="31" ry="10"/></g>
 
 <!-- Fish are decorative silhouettes, not live measurements. -->
-<g aria-hidden="true" class="fish" transform="translate(350 425)"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#9b7353" opacity=".78"/><path d="M-3-6L5-13L9-6" fill="#9b7353" opacity=".6"/></g>
-<g aria-hidden="true" class="fish" transform="translate(595 480) scale(-.8 .8)"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#737d73" opacity=".8"/><path d="M-3-6L5-13L9-6" fill="#737d73" opacity=".6"/></g>
+<g aria-hidden="true" class="fish" transform="translate(350 425)"><g class="fish-swim"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#c49a72" opacity=".78"/><path d="M-3-6L5-13L9-6" fill="#c49a72" opacity=".6"/></g></g>
+<g aria-hidden="true" class="fish" transform="translate(595 480) scale(-.8 .8)"><g class="fish-swim"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#9aa99d" opacity=".8"/><path d="M-3-6L5-13L9-6" fill="#9aa99d" opacity=".6"/></g></g>
 <!-- Filterpumpe og trykledning. -->
 <path class="pipe" d="M391 502H650L795 462H913"/>
 <path class="flow ${active ? 'active' : ''}" d="M391 502H650L795 462H913"/>
@@ -91,9 +97,9 @@ class PondFlowCard extends HTMLElement {
 <path class="${active ? 'rotor' : ''}" d="M370 492V514M359 503H381" stroke="#b8d6dc" stroke-width="3"/>
 
 <!-- Filtrets reelle rolle: beholder, filtermaterialer og UV-C i toppen. -->
-<rect x="914" y="337" width="112" height="194" rx="27" fill="#e8ebE5" stroke="#50666a" stroke-width="2"/>
-<path d="M928 385H1012V506Q1012 516 1000 516H940Q928 516 928 506Z" fill="#c2cdc5"/>
-<g stroke="#93a99d" stroke-width="7"><path d="M937 404H1002M937 427H1002M937 450H1002M937 473H1002M937 496H1002"/></g>
+<rect x="914" y="337" width="112" height="194" rx="27" fill="#354445" stroke="#50666a" stroke-width="2"/>
+<path d="M928 385H1012V506Q1012 516 1000 516H940Q928 516 928 506Z" fill="#43574e"/>
+<g stroke="#688775" stroke-width="7"><path d="M937 404H1002M937 427H1002M937 450H1002M937 473H1002M937 496H1002"/></g>
 <rect x="909" y="320" width="122" height="35" rx="9" fill="#53696d"/>
 <rect x="929" y="327" width="83" height="11" rx="5" fill="${demo || this.running('uv_running') ? '#b9a6c7' : '#86948e'}"/>
 <text x="971" y="372" text-anchor="middle" class="small">UV-C</text>
@@ -102,14 +108,16 @@ class PondFlowCard extends HTMLElement {
 <path class="pipe" d="M1026 365H1060V251H846"/>
 <path class="flow ${active ? 'active' : ''}" d="M1026 365H1060V251H846"/>
 <path d="M993 251H949" fill="none" stroke="#287785" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M846 269H817V301H789V333H762V350H742" fill="none" stroke="#a8aca3" stroke-width="25" stroke-linejoin="round"/>
+<path d="M846 269H817V301H789V333H762V350H742" fill="none" stroke="#57625b" stroke-width="25" stroke-linejoin="round"/>
 <path d="M846 258H819V290H791V322H764V344L739 362" fill="none" stroke="#73b4c0" stroke-width="8" stroke-linejoin="round"/>
 <path d="M846 258H819V290H791V322H764V344L739 362" class="flow ${active ? 'active' : ''}" stroke="#e0f1f1"/>
 
 <!-- Skimmer i vandlinjen, adskilt fra det kendte filterkredsløb. -->
 <rect x="166" y="350" width="42" height="57" rx="4" fill="#52676d" stroke="#314a52" stroke-width="2"/>
 <rect x="175" y="358" width="26" height="16" fill="#163e4c"/>
-<path d="M249 365H216" class="flow ${demo || this.running('skimmer_running') ? 'active' : ''}" marker-end="url(#arrow)"/>
+<g class="skimmer-current ${demo || this.running('skimmer_running') ? 'moving' : ''}">
+<path d="M325 361Q260 348 190 365V391"/><path d="M330 373Q260 377 190 365V391"/><path d="M316 387Q250 399 190 370V391"/>
+</g>
 
 <!-- Isfriholder: kendt udstyr, ingen opdigtet elektrisk status. -->
 <g opacity=".68"><ellipse cx="560" cy="361" rx="32" ry="7" fill="#ecefe9" stroke="#697e80"/><rect x="547" y="349" width="26" height="9" rx="3" fill="#8d9f9c"/><path d="M560 370V412" stroke="#789aa1" stroke-dasharray="3 5"/></g>
@@ -126,7 +134,7 @@ class PondFlowCard extends HTMLElement {
 
 </svg>
       <div class="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Beluftning','aerator_hours'],['skimmer_running','Skimmer','skimmer_hours']].map(([key,label,hours]) => `<button data-info="${key}"><small>${label}</small><strong>${esc(operating(key))} · ${val(hours,'2,5 h')} i alt</strong></button>`).join('')}</div>
-      <div class="equipment">${[...binaryKeys].filter(key => this.state(key)).map(key => `<button data-info="${key}" ${this.running(key) ? 'class="error"' : ''}><small>${esc(labels[key])}</small><strong>${['unknown','unavailable'].includes(this.state(key).state) ? 'Ukendt' : this.running(key) ? 'Aktiv' : 'OK'}</strong></button>`).join('')}</div>
+      ${[...binaryKeys].some(key => this.state(key) && this.state(key).state !== 'off') ? `<div class="equipment alarms" role="status">${[...binaryKeys].filter(key => this.state(key) && this.state(key).state !== 'off').map(key => `<button data-info="${key}" class="error"><small>${esc(labels[key])}</small><strong>${['unknown','unavailable'].includes(this.state(key).state) ? 'Status utilgængelig' : 'Aktiv'}</strong></button>`).join('')}</div>` : ''}
       <div class="controls">${controls.map(([key,label]) => {
         const state = this.state(key);
         const options = state?.attributes.options || (key === 'season' ? ['Auto','Sommer','Vinter'] : key === 'skimmer_plan' ? [] : ['Auto','Til','Fra']);
@@ -137,6 +145,7 @@ class PondFlowCard extends HTMLElement {
       <details><summary>Entiteter og forbindelser</summary>${Object.keys(labels).map(key => `<div>${esc(labels[key])}: ${this.state(key) ? '✓' : 'Mangler'} <code>${esc(this.entity(key))}</code></div>`).join('')}</details>
       <div class="status">Seneste hændelse: ${val('last_event','Filterpumpe startet automatisk')}<br><span class="note">${demo ? 'Demo betjener ikke dit udstyr.' : 'Tryk på en måling eller udstyrsstatus for detaljer. Relæstatus bekræfter ikke fysisk drift.'}</span>${this.error ? `<div class="error" role="alert">${esc(this.error)}</div>` : ''}</div>
     </ha-card>`;
+    this.shadowRoot.querySelectorAll('.fish-swim').forEach((el,index) => { const animation=el.getAnimations()[0]; if (animation && fishTimes[index] != null) animation.currentTime=fishTimes[index]; });
     this.shadowRoot.querySelectorAll('[data-key]').forEach(el => el.addEventListener('click', () => this.change(el.dataset.key,el.dataset.option)));
     this.shadowRoot.querySelectorAll('[data-entity]').forEach(el => el.addEventListener('click', () => { if (!demo) this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:el.dataset.entity},bubbles:true,composed:true})); }));
     this.shadowRoot.querySelectorAll('[data-info]').forEach(el => {

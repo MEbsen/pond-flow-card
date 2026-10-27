@@ -1,5 +1,9 @@
 # Pond Flow Card
 
+Version 0.4.0 dæmper diagrammet og bruger HA-temaets baggrund og tekstfarve. Fiskene svømmer roligt frem og tilbage, og skimmeren har tre strømspor, der kun bevæger sig ved aktiv skimmerstatus. Bevægelse respekterer reduceret bevægelse i systemindstillingerne. OK-alarmer er skjult; aktive alarmer og utilgængelig alarmstatus vises.
+
+Kortet følger containerens bredde og understøtter HA Sections-grid med justerbar bredde og højde (standard 12 kolonner/12 rækker, minimum 6 kolonner/8 rækker). Brug dashboardeditorens layoutindstillinger. Ved lav højde kan indholdet rulles i kortet. Masonry beregner kortets højde fra den aktuelle visning.
+
 Version 0.3.0 bruger det godkendte arkitektoniske snit: jord, bassinfolie, vand, filterpumpe, trykfilter med UV-C, retur via vandfald, skimmer og isfriholder. To diskrete fisk er dekorative. Udstyrets animationer og værdier følger fortsat HA-entiteterne. Diagrammet bygges ind i den selvstændige JavaScript-fil; HACS skal ikke hente ekstra billedfiler.
 
 Version 0.2.1 matcher controllerens faktiske `koerer`-entiteter, viser samlede driftstimer og tilføjer skimmerstatus, skimmertilstand, skimmerplan og alarmer. Sæsonvalg, påfyldning og isfriholderens betjening skjules, når controlleren ikke har disse funktioner. Indstillinger og ugeplan kan åbnes i HA via kortets foldbare indstillingsfelt.

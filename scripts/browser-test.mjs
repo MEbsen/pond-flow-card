@@ -6,7 +6,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({headless:true,...(process.env.BROWSER_CHANNEL ? {channel:process.env.BROWSER_CHANNEL} : {})});
 try {
   const page = await browser.newPage({viewport:{width:820,height:850}});
-  await page.setContent('<body style="background:#09171e;margin:24px"><pond-flow-card></pond-flow-card></body>');
+  await page.setContent('<body style="background:#09171e;margin:24px"><pond-flow-card style="height:auto"></pond-flow-card></body>');
   await page.addScriptTag({content:await readFile('pond-flow-card.js','utf8')});
   await page.evaluate(()=>document.querySelector('pond-flow-card').setConfig({demo:true}));
   assert.equal(await page.locator('[data-key]:enabled').count(),0);
@@ -56,7 +56,8 @@ try {
     card.setConfig({entities:{pump_running:`binary_sensor.${prefix}_filterpumpe_korer`}});
     card.hass={states,callService:async(...args)=>window.calls.push(args)};
   });
-  assert.equal(await page.locator('path.active').count(),4);
+  assert.equal(await page.locator('path.active').count(),3);
+  assert.equal(await page.locator('.skimmer-current.moving path').count(),3);
   assert.equal(await page.locator('.fish').count(),2);
   assert.match(await page.locator('.equipment').first().textContent(),/2,5 h i alt/);
   assert.equal(await page.locator('[data-key="season"]').count(),0);
@@ -68,5 +69,33 @@ try {
   await page.setViewportSize({width:360,height:900});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth),true);
   await page.screenshot({path:'preview-mobile.png',fullPage:true});
+  await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    window.gridOptions=card.getGridOptions();
+    card.shadowRoot.querySelector('.fish-swim').getAnimations()[0].currentTime=9000;
+    card.hass={...card._hass,states:{...card._hass.states,'binary_sensor.garden_pond_controller_alarm_lav_vandstand':{state:'off',attributes:{}}}};
+  });
+  assert.equal(await page.locator('.alarms').count(),0);
+  assert.ok(await page.locator('.fish-swim').first().evaluate(el=>el.getAnimations()[0].currentTime)>=9000);
+  assert.deepEqual(await page.evaluate(()=>window.gridOptions),{columns:12,min_columns:6,rows:12,min_rows:8});
+  const fishBefore=await page.locator('.fish-swim').first().evaluate(el=>getComputedStyle(el).transform);
+  await page.waitForTimeout(150);
+  assert.notEqual(await page.locator('.fish-swim').first().evaluate(el=>getComputedStyle(el).transform),fishBefore);
+  await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    card.hass={...card._hass,states:{...card._hass.states,'binary_sensor.garden_pond_controller_alarm_lav_vandstand':{state:'on',attributes:{}}}};
+  });
+  assert.equal(await page.locator('.alarms button').count(),1);
+  assert.match(await page.locator('.alarms').textContent(),/Aktiv/);
+  await page.setViewportSize({width:1200,height:900});
+  await page.evaluate(()=>{document.querySelector('pond-flow-card').style.width='420px';});
+  assert.equal(await page.locator('.controls').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),1);
+  await page.evaluate(()=>{document.querySelector('pond-flow-card').style.width='900px';});
+  assert.equal(await page.locator('.controls').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),2);
+  await page.evaluate(()=>{document.querySelector('pond-flow-card').style.height='500px';});
+  assert.equal(await page.locator('ha-card').evaluate(el=>Math.round(el.getBoundingClientRect().height)),500);
+  assert.equal(await page.locator('ha-card').evaluate(el=>el.scrollHeight>el.clientHeight),true);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await page.locator('.fish-swim').first().evaluate(el=>el.getAnimations().length),0);
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }

@@ -26,6 +26,12 @@ svg=svg.replace('<!-- Filterpumpe og trykledning. -->',`<!-- Fish are decorative
 <g aria-hidden="true" class="fish" transform="translate(595 480) scale(-.8 .8)"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#737d73" opacity=".8"/><path d="M-3-6L5-13L9-6" fill="#737d73" opacity=".6"/></g>
 <!-- Filterpumpe og trykledning. -->`);
 svg=svg.replace('text{font-family:', '.pond-diagram text{font-family:').replace('stroke-width:3;stroke-dasharray:7 9','stroke-width:3;stroke-dasharray:7 9;opacity:.3').replace('</style>', '.flow.active{opacity:1}.fish{pointer-events:none}</style>');
+// HA theme background, with a restrained dark material palette for the section.
+for(const [light,dark] of Object.entries({'#f4f5f0':'var(--ha-card-background,var(--card-background-color,#1c2328))','#263d43':'var(--primary-text-color,#e1e8e9)','#d9d6cb':'#303635','#b9b6ac':'#4a514c','#d6e9ec':'#21444e','#a7cbd2':'#183640','#e8ebE5':'#354445','#c2cdc5':'#43574e','#93a99d':'#688775','#a8aca3':'#57625b','#b3b9a8':'#596c57','#9b7353':'#c49a72','#737d73':'#9aa99d'})) svg=svg.replaceAll(light,dark);
+svg=svg.replaceAll(/(<g aria-hidden="true" class="fish"[^>]*>)([\s\S]*?)(<\/g>)/g,(_,open,body,close)=>open+'<g class="fish-swim">'+body+'</g>'+close);
+svg=svg.replace('<path d="M249 365H216" class="flow ${demo || this.running(\'skimmer_running\') ? \'active\' : \'\'}" marker-end="url(#arrow)"/>',`<g class="skimmer-current ${'${demo || this.running(\'skimmer_running\') ? \'moving\' : \'\'}'}">
+<path d="M325 361Q260 348 190 365V391"/><path d="M330 373Q260 377 190 365V391"/><path d="M316 387Q250 399 190 370V391"/>
+</g>`);
 let card=await readFile('pond-flow-card.js','utf8');
 const from=card.indexOf('<svg '),to=card.indexOf('</svg>',from)+6;
 if(from<0 || to<6) throw Error('Card SVG not found');
