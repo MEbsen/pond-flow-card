@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.4.2 bevarer SVG-elementer og CSS-animationer ved nye sensormålinger, loghændelser og alarmer. Kun ændrede tekster og attributter opdateres. Fiskene fortsætter gennem hele svømmecyklussen, og vandflow, springvand og rotor genstarter ikke ved uvedkommende dataopdateringer. Åbne indstillinger og fokus bevares også.
+
 Version 0.4.1 samler den flydende enhed under **Beluftning**. Den er samme udstyr som controllerens luftpumpe, bekræftet af brugeren. SVG, status og betjening bruger `aerator_running` / `aerator_mode` (HA: `luftpumpe_koerer` / `luftpumpe_tilstand`). Et lille springvand med fire vandstråler og ringe animeres, når status er `on`; ved stop skjules strålerne. Der er ikke længere et separat IceFree-betjeningsfelt.
 
 Version 0.4.0 dæmper diagrammet og bruger HA-temaets baggrund og tekstfarve. Fiskene svømmer roligt frem og tilbage, og skimmeren har tre strømspor, der kun bevæger sig ved aktiv skimmerstatus. Bevægelse respekterer reduceret bevægelse i systemindstillingerne. OK-alarmer er skjult; aktive alarmer og utilgængelig alarmstatus vises.

@@ -2,6 +2,42 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const labels = {temp_bottom:'Dam Temperatur Bund',temp_surface:'Dam Temperatur Overflade',water_level:'Vandstand',status:'Dam status',last_event:'Seneste hændelse',pump_running:'Filterpumpe koerer',uv_running:'UV-C taendt',aerator_running:'Luftpumpe koerer',skimmer_running:'Skimmer koerer',skimmer_mode:'Skimmer tilstand',skimmer_plan:'Skimmer plan',season:'Sæson',pump_mode:'Filterpumpe tilstand',uv_mode:'UV-C tilstand',aerator_mode:'Luftpumpe tilstand',pump_hours:'Filterpumpe drift total',uv_hours:'UV-C drift total',aerator_hours:'Luftpumpe drift total',skimmer_hours:'Skimmer drift total',skimmer_locked:'Skimmer sikkerhedsspaerret',low_water:'Alarm lav vandstand',level_fault:'Fejl niveausensor',temp_fault:'Fejl temperatursensor',relay_fault:'Fejl relaemodul',settings_fault:'Fejl indstillinger',schedule_fault:'Fejl ugeplan ur',uv_service:'UV-C service paakraevet'};
 const binaryKeys = new Set(['skimmer_locked','low_water','level_fault','temp_fault','relay_fault','settings_fault','schedule_fault','uv_service']);
 const slug = value => value.toLowerCase().replaceAll('æ','ae').replaceAll('ø','o').replaceAll('å','a').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+// Patch values in place: recreating the SVG also recreates every CSS animation.
+function patchNode(current, next) {
+  if (current.nodeType !== next.nodeType || current.nodeName !== next.nodeName) {
+    current.replaceWith(next.cloneNode(true));
+    return;
+  }
+  if (current.nodeType === Node.TEXT_NODE || current.nodeType === Node.COMMENT_NODE) {
+    if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+    return;
+  }
+  if (current.nodeType === Node.ELEMENT_NODE) {
+    for (const attr of [...current.attributes]) {
+      if (!next.hasAttribute(attr.name) && !(current.localName === 'details' && attr.name === 'open')) current.removeAttribute(attr.name);
+    }
+    for (const attr of next.attributes) {
+      if (current.getAttribute(attr.name) !== attr.value) current.setAttribute(attr.name, attr.value);
+    }
+  }
+  const wanted = [...next.childNodes];
+  const key = node => node.nodeType === Node.ELEMENT_NODE ? node.getAttribute('data-section') : null;
+  for (let i=0; i<wanted.length; i++) {
+    let child=current.childNodes[i];
+    const nextKey=key(wanted[i]);
+    if (nextKey && key(child || {}) !== nextKey) {
+      const existing=[...current.childNodes].find(node=>key(node)===nextKey);
+      current.insertBefore(existing || wanted[i].cloneNode(true),child || null);
+      child=current.childNodes[i];
+    } else if (!nextKey && key(child || {})) {
+      current.insertBefore(wanted[i].cloneNode(true),child);
+      child=current.childNodes[i];
+    }
+    if (!child) current.append(wanted[i].cloneNode(true));
+    else patchNode(child,wanted[i]);
+  }
+  while(current.childNodes.length>wanted.length) current.lastChild.remove();
+}
 class PondFlowCard extends HTMLElement {
   constructor() { super(); this.attachShadow({mode:'open'}); }
   setConfig(config) { this.config = {...config}; this.signature = ''; this.render(); }
@@ -9,7 +45,8 @@ class PondFlowCard extends HTMLElement {
     this._hass = hass;
     if (!this.config) return;
     const prefix = this.config.entity_prefix || 'garden_pond_controller';
-    const signature = JSON.stringify([Object.keys({...labels,...this.config.entities}).map(key => this.state(key)),Object.entries(hass.states).filter(([id]) => id.startsWith(`number.${prefix}_`) || id.startsWith(`switch.${prefix}_`))]);
+    const visible = state => state && [state.state,state.attributes];
+    const signature = JSON.stringify([Object.keys({...labels,...this.config.entities}).map(key => visible(this.state(key))),Object.entries(hass.states).filter(([id]) => id.startsWith(`number.${prefix}_`) || id.startsWith(`switch.${prefix}_`)).map(([id,state])=>[id,visible(state)])]);
     if (signature !== this.signature) { this.signature = signature; this.render(); }
   }
   getCardSize() { return Math.ceil((this.getBoundingClientRect().height || 650) / 50); }
@@ -43,17 +80,18 @@ class PondFlowCard extends HTMLElement {
   }
   render() {
     if (!this.config) return;
-    const fishTimes = [...this.shadowRoot.querySelectorAll('.fish-swim')].map(el => el.getAnimations()[0]?.currentTime);
+    const focused = this.shadowRoot.activeElement;
     const demo = this.config.demo === true;
     const active = demo || this.running('pump_running');
     const val = (key, sample) => esc(demo ? sample : this.value(key));
     const controls = [['season','Sæson'],['pump_mode','Filterpumpe'],['uv_mode','UV-C'],['aerator_mode','Beluftning'],['skimmer_mode','Skimmer'],['skimmer_plan','Skimmerplan']].filter(([key]) => demo || this.state(key));
     const operating = key => demo ? 'Kører' : !this.state(key) || ['unknown','unavailable'].includes(this.state(key).state) ? 'Ukendt' : this.running(key) ? 'Kører' : 'Stoppet';
-    this.shadowRoot.innerHTML = `
+    const template = document.createElement('template');
+    template.innerHTML = `
     <style>
       :host{display:block;min-width:0;width:100%;height:100%;container-type:inline-size}ha-card{display:flex;flex-direction:column;box-sizing:border-box;width:100%;height:100%;min-width:0;background:var(--ha-card-background,var(--card-background-color,#1c2328));color:var(--primary-text-color,#edf6f5);border-radius:var(--ha-card-border-radius,16px);overflow:auto;font-family:var(--paper-font-body1_-_font-family,system-ui)}
       header{padding:22px 24px 8px;display:flex;justify-content:space-between;align-items:center}h2{font-size:21px;margin:0}small{opacity:.7}.badge{font-size:12px;padding:7px 10px;border-radius:30px;background:#54887933}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 24px}.metric{background:#7396a415;padding:12px;border-radius:12px}.metric small{display:block;font-size:11px}.metric strong{display:block;margin-top:4px;font-size:18px}
-      svg{width:100%;height:auto;min-height:160px;flex:1 0 auto;display:block}ha-card> :not(svg){flex-shrink:0}svg text{font-family:system-ui;fill:#d7e9ed;font-size:13px}.flow{fill:none;stroke:#53d5db;stroke-width:7;stroke-linecap:round;stroke-dasharray:9 14;opacity:.28}.active{opacity:1;animation:water 2s linear infinite}@keyframes water{to{stroke-dashoffset:-46}}@media(prefers-reduced-motion:reduce){.active{animation:none}}
+      svg{width:100%;height:auto;min-height:160px;flex:1 0 auto;display:block}ha-card> :not(svg){flex-shrink:0}svg text{font-family:system-ui;fill:#d7e9ed;font-size:13px}.flow{fill:none;stroke:#53d5db;stroke-width:7;stroke-linecap:round;stroke-dasharray:9 14;opacity:.28}.active{opacity:1;animation:water 2s linear infinite}@keyframes water{to{stroke-dashoffset:-48}}@media(prefers-reduced-motion:reduce){.active{animation:none}}
       .controls{padding:4px 24px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.control{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}.control select{max-width:115px;padding:8px;border:1px solid #7196a550;border-radius:8px;background:var(--card-background-color,#193340);color:inherit}.status{padding:12px 24px;border-top:1px solid #7196a530;font-size:12px;line-height:1.6}.error{color:#f9a99b}.note{opacity:.65;font-size:11px}@media(max-width:420px){.controls{grid-template-columns:1fr}.metrics{padding:12px}.metric strong{font-size:15px}}
       [data-info]{cursor:pointer}.diagram-value{font-size:15px;font-weight:600;fill:#fff}.equipment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 24px 18px}.equipment button{font:inherit;text-align:left;color:inherit;background:#7396a415;border:1px solid #7196a530;border-radius:10px;padding:10px;cursor:pointer}.equipment small{display:block}.equipment strong{font-size:13px}.controls button{padding:9px;border-radius:7px;border:1px solid #7196a550;color:inherit;background:transparent;cursor:pointer}.controls button[aria-pressed=true]{background:#438b8b55}.options{display:flex;gap:4px;flex-wrap:wrap}.control{flex-wrap:wrap}.rotor{transform-box:fill-box;transform-origin:center;animation:spin 1.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.rotor{animation:none}}details{padding:0 24px 16px;font-size:12px;overflow-wrap:anywhere}
       .fish-swim{animation:swim 22s linear infinite;transform-box:view-box;transform-origin:0 0}.fish:nth-of-type(even) .fish-swim{animation-duration:29s;animation-delay:-9s}@keyframes swim{0%{transform:translateX(50px) scaleX(1)}46%{transform:translateX(-60px) scaleX(1)}50%{transform:translateX(-60px) scaleX(-1)}96%{transform:translateX(50px) scaleX(-1)}100%{transform:translateX(50px) scaleX(1)}}
@@ -63,9 +101,9 @@ class PondFlowCard extends HTMLElement {
       @media(prefers-reduced-motion:reduce){.fish-swim,.skimmer-current.moving path,.fountain path,.fountain .ripple{animation:none}}
     </style>
     <ha-card>
-      <header><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>
-      <div class="metrics"><div class="metric"><small>OVERFLADE</small><strong>${val('temp_surface','23,1 °C')}</strong></div><div class="metric"><small>BUND</small><strong>${val('temp_bottom','23,1 °C')}</strong></div><div class="metric"><small>VANDSTAND</small><strong>${val('water_level','48 cm')}</strong></div></div>
-<svg class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, beluftning med springvand, filterpumpe, trykfilter med UV-C og vandfald" xmlns="http://www.w3.org/2000/svg" viewBox="0 175 1200 455">
+      <header data-section="header"><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>
+      <div class="metrics" data-section="metrics"><div class="metric"><small>OVERFLADE</small><strong>${val('temp_surface','23,1 °C')}</strong></div><div class="metric"><small>BUND</small><strong>${val('temp_bottom','23,1 °C')}</strong></div><div class="metric"><small>VANDSTAND</small><strong>${val('water_level','48 cm')}</strong></div></div>
+<svg data-section="diagram" class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, beluftning med springvand, filterpumpe, trykfilter med UV-C og vandfald" xmlns="http://www.w3.org/2000/svg" viewBox="0 175 1200 455">
 <defs>
  <pattern id="earth" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M0 22L22 0" stroke="#4a514c" stroke-width=".6"/></pattern>
  <linearGradient id="water" x2="0" y2="1"><stop stop-color="#21444e"/><stop offset="1" stop-color="#183640"/></linearGradient>
@@ -137,25 +175,26 @@ class PondFlowCard extends HTMLElement {
 <path class="leader" d="M343 535V581"/><text x="343" y="606" data-info="pump_running" text-anchor="middle" class="label">Filterpumpe · ${esc(operating('pump_running'))}</text>
 
 </svg>
-      <div class="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Beluftning','aerator_hours'],['skimmer_running','Skimmer','skimmer_hours']].map(([key,label,hours]) => `<button data-info="${key}"><small>${label}</small><strong>${esc(operating(key))} · ${val(hours,'2,5 h')} i alt</strong></button>`).join('')}</div>
-      ${[...binaryKeys].some(key => this.state(key) && this.state(key).state !== 'off') ? `<div class="equipment alarms" role="status">${[...binaryKeys].filter(key => this.state(key) && this.state(key).state !== 'off').map(key => `<button data-info="${key}" class="error"><small>${esc(labels[key])}</small><strong>${['unknown','unavailable'].includes(this.state(key).state) ? 'Status utilgængelig' : 'Aktiv'}</strong></button>`).join('')}</div>` : ''}
-      <div class="controls">${controls.map(([key,label]) => {
+      <div class="equipment" data-section="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Beluftning','aerator_hours'],['skimmer_running','Skimmer','skimmer_hours']].map(([key,label,hours]) => `<button data-info="${key}"><small>${label}</small><strong>${esc(operating(key))} · ${val(hours,'2,5 h')} i alt</strong></button>`).join('')}</div>
+      ${[...binaryKeys].some(key => this.state(key) && this.state(key).state !== 'off') ? `<div class="equipment alarms" data-section="alarms" role="status">${[...binaryKeys].filter(key => this.state(key) && this.state(key).state !== 'off').map(key => `<button data-info="${key}" class="error"><small>${esc(labels[key])}</small><strong>${['unknown','unavailable'].includes(this.state(key).state) ? 'Status utilgængelig' : 'Aktiv'}</strong></button>`).join('')}</div>` : ''}
+      <div class="controls" data-section="controls">${controls.map(([key,label]) => {
         const state = this.state(key);
         const options = state?.attributes.options || (key === 'season' ? ['Auto','Sommer','Vinter'] : key === 'skimmer_plan' ? [] : ['Auto','Til','Fra']);
         const disabled = demo || !state || ['unavailable','unknown'].includes(state.state);
         return `<div class="control"><span>${label}</span><div class="options">${!state && !demo ? '<small>Ikke tilkoblet</small>' : options.map(option => `<button data-key="${key}" data-option="${esc(option)}" aria-label="${label}: ${esc(option)}" aria-pressed="${option === state?.state}" ${disabled ? 'disabled' : ''}>${esc(option)}</button>`).join('')}</div></div>`;
       }).join('')}</div>
-      <details><summary>Indstillinger og skimmerens ugeplan</summary><div class="equipment">${Object.entries(this._hass?.states || {}).filter(([id]) => ['number','switch'].some(domain => id.startsWith(`${domain}.${this.config.entity_prefix || 'garden_pond_controller'}_`))).map(([id,s]) => `<button data-entity="${esc(id)}"><small>${esc(s.attributes.friendly_name || id)}</small><strong>${esc(s.state)} ${esc(s.attributes.unit_of_measurement || '')}</strong></button>`).join('')}</div><span class="note">Tryk for at åbne og ændre indstillingen i Home Assistant.</span></details>
-      <details><summary>Entiteter og forbindelser</summary>${Object.keys(labels).map(key => `<div>${esc(labels[key])}: ${this.state(key) ? '✓' : 'Mangler'} <code>${esc(this.entity(key))}</code></div>`).join('')}</details>
-      <div class="status">Seneste hændelse: ${val('last_event','Filterpumpe startet automatisk')}<br><span class="note">${demo ? 'Demo betjener ikke dit udstyr.' : 'Tryk på en måling eller udstyrsstatus for detaljer. Relæstatus bekræfter ikke fysisk drift.'}</span>${this.error ? `<div class="error" role="alert">${esc(this.error)}</div>` : ''}</div>
+      <details data-section="settings"><summary>Indstillinger og skimmerens ugeplan</summary><div class="equipment">${Object.entries(this._hass?.states || {}).filter(([id]) => ['number','switch'].some(domain => id.startsWith(`${domain}.${this.config.entity_prefix || 'garden_pond_controller'}_`))).map(([id,s]) => `<button data-entity="${esc(id)}"><small>${esc(s.attributes.friendly_name || id)}</small><strong>${esc(s.state)} ${esc(s.attributes.unit_of_measurement || '')}</strong></button>`).join('')}</div><span class="note">Tryk for at åbne og ændre indstillingen i Home Assistant.</span></details>
+      <details data-section="entities"><summary>Entiteter og forbindelser</summary>${Object.keys(labels).map(key => `<div>${esc(labels[key])}: ${this.state(key) ? '✓' : 'Mangler'} <code>${esc(this.entity(key))}</code></div>`).join('')}</details>
+      <div class="status" data-section="status">Seneste hændelse: ${val('last_event','Filterpumpe startet automatisk')}<br><span class="note">${demo ? 'Demo betjener ikke dit udstyr.' : 'Tryk på en måling eller udstyrsstatus for detaljer. Relæstatus bekræfter ikke fysisk drift.'}</span>${this.error ? `<div class="error" role="alert">${esc(this.error)}</div>` : ''}</div>
     </ha-card>`;
-    this.shadowRoot.querySelectorAll('.fish-swim').forEach((el,index) => { const animation=el.getAnimations()[0]; if (animation && fishTimes[index] != null) animation.currentTime=fishTimes[index]; });
-    this.shadowRoot.querySelectorAll('[data-key]').forEach(el => el.addEventListener('click', () => this.change(el.dataset.key,el.dataset.option)));
-    this.shadowRoot.querySelectorAll('[data-entity]').forEach(el => el.addEventListener('click', () => { if (!demo) this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:el.dataset.entity},bubbles:true,composed:true})); }));
+    patchNode(this.shadowRoot,template.content);
+    if (focused?.isConnected && this.shadowRoot.activeElement !== focused) focused.focus({preventScroll:true});
+    this.shadowRoot.querySelectorAll('[data-key]').forEach(el => {el.onclick = () => this.change(el.dataset.key,el.dataset.option);});
+    this.shadowRoot.querySelectorAll('[data-entity]').forEach(el => {el.onclick = () => { if (!demo) this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:el.dataset.entity},bubbles:true,composed:true})); };});
     this.shadowRoot.querySelectorAll('[data-info]').forEach(el => {
       const open = () => { const id = this.entity(el.dataset.info); if (!demo && this.state(el.dataset.info)) this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:id},bubbles:true,composed:true})); };
-      el.addEventListener('click',open);
-      if (el.tagName !== 'BUTTON') { el.setAttribute('tabindex','0'); el.setAttribute('role','button'); el.addEventListener('keydown',event => { if (['Enter',' '].includes(event.key)) {event.preventDefault();open();} }); }
+      el.onclick = event => {event.stopPropagation();open();};
+      if (el.tagName !== 'BUTTON') { el.setAttribute('tabindex','0'); el.setAttribute('role','button'); el.onkeydown = event => { if (['Enter',' '].includes(event.key)) {event.preventDefault();event.stopPropagation();open();} }; }
     });
   }
 }

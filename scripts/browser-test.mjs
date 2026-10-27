@@ -111,5 +111,42 @@ try {
   assert.notEqual(await page.locator('.fountain.running path').first().evaluate(el=>getComputedStyle(el).strokeDashoffset),sprayBefore);
   await page.locator('[data-key="aerator_mode"][data-option="Til"]').click();
   assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.garden_pond_controller_luftpumpe_tilstand',option:'Til'}]);
+  // Changing readings, logs and HA timestamps must preserve the actual animation
+  // objects, not replace them and restore an approximate playback time.
+  const continuity = await page.evaluate(async()=>{
+    const card=document.querySelector('pond-flow-card');
+    const svg=card.shadowRoot.querySelector('svg');
+    const animated=[...svg.querySelectorAll('.fish-swim,.flow.active,.rotor,.skimmer-current.moving path,.fountain.running path,.ripple')];
+    const animations=animated.map(el=>el.getAnimations()[0]).filter(Boolean);
+    const fish=card.shadowRoot.querySelector('.fish-swim');
+    fish.getAnimations()[0].currentTime=21900;
+    const initial=animations.map(a=>a.currentTime);
+    const details=card.shadowRoot.querySelector('details');
+    details.open=true;
+    const control=card.shadowRoot.querySelector('[data-key="skimmer_mode"]');
+    control.focus();
+    const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+    for(let i=0;i<90;i++) {
+      const tempId='sensor.garden_pond_controller_dam_temperatur_bund';
+      card.hass={...card._hass,states:{...card._hass.states,
+        [tempId]:{state:String(8+i/100),attributes:{unit_of_measurement:'°C'},last_updated:String(i)},
+        'sensor.garden_pond_controller_seneste_haendelse':{state:'Opdatering '+i,attributes:{}},
+        'binary_sensor.garden_pond_controller_alarm_lav_vandstand':{state:i%2?'on':'off',attributes:{}}
+      }};
+      await nextFrame();
+    }
+    const sameNodes=animated.every(el=>el.isConnected) && svg===card.shadowRoot.querySelector('svg');
+    const sameAnimations=animations.every(a=>a.effect.target.getAnimations().includes(a));
+    const advanced=animations.every((a,i)=>a.currentTime>initial[i]);
+    const fishProgress=fish.getAnimations()[0].currentTime>22000;
+    const uiPreserved=details.open && card.shadowRoot.activeElement===control;
+    const fishAnimation=fish.getAnimations()[0];
+    card.hass={...card._hass,states:{...card._hass.states,'binary_sensor.garden_pond_controller_filterpumpe_koerer':{state:'off',attributes:{}}}};
+    const independent=fish.getAnimations()[0]===fishAnimation && !card.shadowRoot.querySelector('.flow.active');
+    const count=window.calls.length;
+    card.shadowRoot.querySelector('[data-key="skimmer_mode"][data-option="Til"]').click();
+    return {sameNodes,sameAnimations,advanced,fishProgress,uiPreserved,independent,singleCall:window.calls.length===count+1};
+  });
+  assert.deepEqual(continuity,{sameNodes:true,sameAnimations:true,advanced:true,fishProgress:true,uiPreserved:true,independent:true,singleCall:true});
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }

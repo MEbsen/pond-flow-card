@@ -5,7 +5,7 @@ svg=svg.replace('width="1200" height="760" viewBox="0 0 1200 760"','viewBox="0 1
 svg=svg.slice(0,svg.indexOf('<!-- Tilstandsstribe'))+'</svg>';
 const start=svg.indexOf('<text x="48" y="51"');
 svg=svg.slice(0,start)+svg.slice(svg.indexOf('<!-- Tydeligt'));
-svg=svg.replace('<svg xmlns=', '<svg class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald" xmlns=');
+svg=svg.replace('<svg xmlns=', '<svg data-section="diagram" class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald" xmlns=');
 for(const path of ['M391 502H650L795 462H913','M1026 365H1060V251H846','M846 258H819V290H791V322H764V344L739 362']) {
   svg=svg.replace(`d="${path}" class="flow"`,`d="${path}" class="flow ${'${active ? \'active\' : \'\'}'}"`);
   svg=svg.replace(`class="flow" d="${path}"`,`class="flow ${'${active ? \'active\' : \'\'}'}" d="${path}"`);
