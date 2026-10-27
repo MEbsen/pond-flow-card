@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.3.0 bruger det godkendte arkitektoniske snit: jord, bassinfolie, vand, filterpumpe, trykfilter med UV-C, retur via vandfald, skimmer og isfriholder. To diskrete fisk er dekorative. Udstyrets animationer og værdier følger fortsat HA-entiteterne. Diagrammet bygges ind i den selvstændige JavaScript-fil; HACS skal ikke hente ekstra billedfiler.
+
 Version 0.2.1 matcher controllerens faktiske `koerer`-entiteter, viser samlede driftstimer og tilføjer skimmerstatus, skimmertilstand, skimmerplan og alarmer. Sæsonvalg, påfyldning og isfriholderens betjening skjules, når controlleren ikke har disse funktioner. Indstillinger og ugeplan kan åbnes i HA via kortets foldbare indstillingsfelt.
 
 Med den aktuelle controller er denne minimumskonfiguration nok (fjern gamle manuelle entity-id'er for at bruge automatisk registrering):

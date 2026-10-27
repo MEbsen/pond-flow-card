@@ -57,37 +57,74 @@ class PondFlowCard extends HTMLElement {
     </style>
     <ha-card>
       <header><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>
-      <div class="metrics"><div class="metric"><small>OVERFLADE</small><strong>${val('temp_surface','8,4 °C')}</strong></div><div class="metric"><small>BUND</small><strong>${val('temp_bottom','9,1 °C')}</strong></div><div class="metric"><small>VANDSTAND</small><strong>${val('water_level','95 cm')}</strong></div></div>
-      <svg viewBox="0 0 720 390" role="img" aria-label="Vandets vej fra dammens filterpumpe til trykfilter med UV-C og tilbage via vandfald. Separat isfriholder i overfladen.">
-        <defs><linearGradient id="water" x2="0" y2="1"><stop stop-color="#2b8494"/><stop offset="1" stop-color="#123f59"/></linearGradient><linearGradient id="land" x2="0" y2="1"><stop stop-color="#477369"/><stop offset="1" stop-color="#263e3d"/></linearGradient></defs>
-        <rect width="720" height="390" fill="#112631"/>
-        <path d="M25 180 Q160 130 340 160 L420 180 Q485 95 555 76 Q610 80 625 175 L695 180 L695 352 L25 352Z" fill="url(#land)"/>
-        <path d="M35 190 Q200 165 435 191 L420 270 Q385 338 230 337 Q85 330 50 267Z" fill="url(#water)" stroke="#72b9bb" stroke-width="2"/>
-        <path d="M35 190 Q200 165 435 191" stroke="#98e4df" fill="none" stroke-width="3"/>
-        <g data-info="skimmer_running" aria-label="Skimmerstatus"><rect x="380" y="178" width="36" height="25" rx="3" fill="#254451" stroke="#7daeb1"/><path class="flow ${demo || this.running('skimmer_running') ? 'active' : ''}" d="M343 194H393"/><text x="360" y="226">Skimmer</text></g>
-        <path d="M600 131 L568 104 L540 119 L551 139 L515 148 L525 170 L474 183 L453 205 L417 211" fill="none" stroke="#8ab8ab" stroke-width="24" stroke-linejoin="round"/>
-        <path class="flow ${active ? 'active' : ''}" d="M600 131 L568 104 L540 119 L551 139 L515 148 L525 170 L474 183 L453 205 L417 211"/>
-        <path d="M197 283 L425 283 L478 241 L559 241" fill="none" stroke="#15313b" stroke-width="14"/>
-        <path class="flow ${active ? 'active' : ''}" d="M197 283 L425 283 L478 241 L559 241"/>
-        <rect x="155" y="260" width="64" height="46" rx="20" fill="#172a35" stroke="#7aa0a8" stroke-width="2"/>
-        <path d="M171 265V301 M182 263V303 M193 264V302" stroke="#64808d" stroke-width="3"/>
-        <g data-info="pump_running" role="button" tabindex="0" aria-label="Vis filterpumpens status"><circle cx="235" cy="286" r="18" fill="#1d4354" stroke="#8fbac2"/><path class="${active ? 'rotor' : ''}" d="M235 273V299 M222 286H248" stroke="#93e1e4" stroke-width="4"/></g>
-        <rect x="561" y="191" width="88" height="122" rx="23" fill="#243f4d" stroke="#84a3a8" stroke-width="2"/>
-        <rect x="571" y="182" width="68" height="25" rx="9" fill="#536b72"/>
-        <path d="M579 223H630 M579 242H630 M579 261H630 M579 280H630" stroke="#689b99" stroke-width="10"/>
-        <path d="M607 190V287" stroke="${demo || this.running('uv_running') ? '#c2a4ff' : '#677580'}" stroke-width="6"/>
-        <path d="M607 183V143L600 131" fill="none" stroke="#7daeb1" stroke-width="9"/>
-        <ellipse cx="313" cy="184" rx="32" ry="8" fill="#d9e7db"/><rect x="300" y="173" width="26" height="10" rx="4" fill="#84a59c"/>
-        <path d="M313 191V238" stroke="#8ab8c3" stroke-width="3" stroke-dasharray="4 5"/>
-        <text x="154" y="329">Filterpumpe</text><text x="554" y="337">Trykfilter</text><text x="583" y="173">UV-C</text>
-        <text x="260" y="152">Isfriholder · 5 W</text><text x="455" y="63">Retur via vandfald</text>
-        <text class="diagram-value" data-info="temp_surface" x="52" y="215">Overflade ${val('temp_surface','8,4 °C')}</text>
-        <text class="diagram-value" data-info="temp_bottom" x="70" y="307">Bund ${val('temp_bottom','9,1 °C')}</text>
-        <text data-info="water_level" x="47" y="244">Vandstand ${val('water_level','95 cm')}</text>
-        <text data-info="pump_running" x="270" y="309">${esc(operating('pump_running'))}</text>
-        <text data-info="uv_running" x="558" y="359">UV-C: ${esc(operating('uv_running'))}</text>
-        <text x="44" y="375" style="font-size:11px;fill:#95b5bd">${demo ? 'Illustration med eksempeldata' : 'Animation følger pumpens statusentitet · gennemstrømning er ikke målt'}</text>
-      </svg>
+      <div class="metrics"><div class="metric"><small>OVERFLADE</small><strong>${val('temp_surface','23,1 °C')}</strong></div><div class="metric"><small>BUND</small><strong>${val('temp_bottom','23,1 °C')}</strong></div><div class="metric"><small>VANDSTAND</small><strong>${val('water_level','48 cm')}</strong></div></div>
+<svg class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald" xmlns="http://www.w3.org/2000/svg" viewBox="0 175 1200 455">
+<defs>
+ <pattern id="earth" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M0 22L22 0" stroke="#b9b6ac" stroke-width=".6"/></pattern>
+ <linearGradient id="water" x2="0" y2="1"><stop stop-color="#d6e9ec"/><stop offset="1" stop-color="#a7cbd2"/></linearGradient>
+ <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1L8 5L0 9" fill="none" stroke="#287785" stroke-width="1.7"/></marker>
+ <style>.pond-diagram text{font-family:Segoe UI,Arial,sans-serif;fill:#263d43}.label{font-size:17px;font-weight:600}.small{font-size:13px;fill:#63777b}.value{font-size:25px;font-weight:600}.leader{fill:none;stroke:#86979a;stroke-width:1}.pipe{fill:none;stroke:#405a61;stroke-width:12;stroke-linejoin:round;stroke-linecap:round}.flow{fill:none;stroke:#5baebd;stroke-width:3;stroke-dasharray:7 9;opacity:.3}.frame{fill:#f9faf7;stroke:#d8dfdb;stroke-width:1}.flow.active{opacity:1}.fish{pointer-events:none}</style>
+</defs>
+<rect width="1200" height="760" rx="24" fill="#f4f5f0"/>
+<!-- Tydeligt tværsnit: jord, bassinfolie og vand. -->
+<path d="M50 342H135L177 485Q192 551 288 556H584Q681 553 714 475L755 342H1150V608H50Z" fill="#d9d6cb"/>
+<path d="M50 342H135L177 485Q192 551 288 556H584Q681 553 714 475L755 342H1150V608H50Z" fill="url(#earth)"/>
+<path d="M135 342L177 485Q192 551 288 556H584Q681 553 714 475L755 342" fill="none" stroke="#586663" stroke-width="8"/>
+<path d="M141 362H748L711 474Q679 547 584 550H288Q198 546 182 483Z" fill="url(#water)"/>
+<path d="M141 362H748" stroke="#3b8a98" stroke-width="3"/>
+<path d="M50 339H133M758 339H1150" stroke="#83947c" stroke-width="6"/>
+
+<!-- Beplantning, sparsomt og uden illustrationseffekter. -->
+<g fill="none" stroke="#738a70" stroke-width="3" stroke-linecap="round"><path d="M96 337Q71 304 74 276M96 337Q101 294 113 267M96 337Q88 294 92 255M1043 336Q1025 310 1030 289M1043 336Q1055 309 1057 282"/></g>
+<g fill="#b3b9a8" stroke="#8f9b89"><ellipse cx="91" cy="341" rx="27" ry="9"/><ellipse cx="1081" cy="338" rx="31" ry="10"/></g>
+
+<!-- Fish are decorative silhouettes, not live measurements. -->
+<g aria-hidden="true" class="fish" transform="translate(350 425)"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#9b7353" opacity=".78"/><path d="M-3-6L5-13L9-6" fill="#9b7353" opacity=".6"/></g>
+<g aria-hidden="true" class="fish" transform="translate(595 480) scale(-.8 .8)"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#737d73" opacity=".8"/><path d="M-3-6L5-13L9-6" fill="#737d73" opacity=".6"/></g>
+<!-- Filterpumpe og trykledning. -->
+<path class="pipe" d="M391 502H650L795 462H913"/>
+<path class="flow ${active ? 'active' : ''}" d="M391 502H650L795 462H913"/>
+<path d="M520 502H559" fill="none" stroke="#287785" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="290" y="477" width="106" height="53" rx="23" fill="#40565d" stroke="#253d45" stroke-width="2"/>
+<g stroke="#849ca2" stroke-width="3"><path d="M307 486V521M319 482V525M331 481V526M343 482V525"/></g>
+<circle cx="370" cy="503" r="15" fill="#263f48" stroke="#8bbbc2"/>
+<path class="${active ? 'rotor' : ''}" d="M370 492V514M359 503H381" stroke="#b8d6dc" stroke-width="3"/>
+
+<!-- Filtrets reelle rolle: beholder, filtermaterialer og UV-C i toppen. -->
+<rect x="914" y="337" width="112" height="194" rx="27" fill="#e8ebE5" stroke="#50666a" stroke-width="2"/>
+<path d="M928 385H1012V506Q1012 516 1000 516H940Q928 516 928 506Z" fill="#c2cdc5"/>
+<g stroke="#93a99d" stroke-width="7"><path d="M937 404H1002M937 427H1002M937 450H1002M937 473H1002M937 496H1002"/></g>
+<rect x="909" y="320" width="122" height="35" rx="9" fill="#53696d"/>
+<rect x="929" y="327" width="83" height="11" rx="5" fill="${demo || this.running('uv_running') ? '#b9a6c7' : '#86948e'}"/>
+<text x="971" y="372" text-anchor="middle" class="small">UV-C</text>
+
+<!-- Returledning til et klart aflæseligt vandfald. -->
+<path class="pipe" d="M1026 365H1060V251H846"/>
+<path class="flow ${active ? 'active' : ''}" d="M1026 365H1060V251H846"/>
+<path d="M993 251H949" fill="none" stroke="#287785" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M846 269H817V301H789V333H762V350H742" fill="none" stroke="#a8aca3" stroke-width="25" stroke-linejoin="round"/>
+<path d="M846 258H819V290H791V322H764V344L739 362" fill="none" stroke="#73b4c0" stroke-width="8" stroke-linejoin="round"/>
+<path d="M846 258H819V290H791V322H764V344L739 362" class="flow ${active ? 'active' : ''}" stroke="#e0f1f1"/>
+
+<!-- Skimmer i vandlinjen, adskilt fra det kendte filterkredsløb. -->
+<rect x="166" y="350" width="42" height="57" rx="4" fill="#52676d" stroke="#314a52" stroke-width="2"/>
+<rect x="175" y="358" width="26" height="16" fill="#163e4c"/>
+<path d="M249 365H216" class="flow ${demo || this.running('skimmer_running') ? 'active' : ''}" marker-end="url(#arrow)"/>
+
+<!-- Isfriholder: kendt udstyr, ingen opdigtet elektrisk status. -->
+<g opacity=".68"><ellipse cx="560" cy="361" rx="32" ry="7" fill="#ecefe9" stroke="#697e80"/><rect x="547" y="349" width="26" height="9" rx="3" fill="#8d9f9c"/><path d="M560 370V412" stroke="#789aa1" stroke-dasharray="3 5"/></g>
+
+<!-- Etiketter og målepunkter uden krydsende linjer. -->
+<path class="leader" d="M186 347V243H128"/><text x="68" y="218" class="label">Skimmer</text><text x="68" y="238" data-info="skimmer_running" class="small">Overfladerens · ${esc(operating('skimmer_running'))}</text>
+<path class="leader" d="M560 345V235"/><text x="560" y="199" text-anchor="middle" class="label">IceFree 4 Seasons</text><text x="560" y="220" text-anchor="middle" class="small">Vinterudstyr · 5 W · status ikke tilkoblet</text>
+<text x="893" y="202" class="label">Retur via vandfald</text><text x="893" y="223" class="small">Fra trykfilter til dam</text>
+<path class="leader" d="M1029 433H1094"/><text x="1094" y="405" text-anchor="end" class="label">Trykfilter</text><text x="1094" y="425" data-info="uv_running" text-anchor="end" class="small">UV-C · ${esc(operating('uv_running'))}</text>
+<circle cx="467" cy="391" r="4" fill="#287785"/><path class="leader" d="M474 391H670"/><text x="670" y="415" text-anchor="end" class="small">OVERFLADE</text><text x="670" y="446" data-info="temp_surface" text-anchor="end" class="value">${val('temp_surface','23,1 °C')}</text>
+<circle cx="469" cy="527" r="4" fill="#287785"/><text x="500" y="530" class="small">BUND</text><text x="559" y="532" data-info="temp_bottom" font-size="20" font-weight="600">${val('temp_bottom','23,1 °C')}</text>
+<path d="M115 363V550M109 363H121M109 550H121" fill="none" stroke="#627d82"/><text x="104" y="453" data-info="water_level" text-anchor="end" font-size="16" font-weight="600">${val('water_level','48 cm')}</text>
+<path class="leader" d="M343 535V581"/><text x="343" y="606" data-info="pump_running" text-anchor="middle" class="label">Filterpumpe · ${esc(operating('pump_running'))}</text>
+
+</svg>
       <div class="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Beluftning','aerator_hours'],['skimmer_running','Skimmer','skimmer_hours']].map(([key,label,hours]) => `<button data-info="${key}"><small>${label}</small><strong>${esc(operating(key))} · ${val(hours,'2,5 h')} i alt</strong></button>`).join('')}</div>
       <div class="equipment">${[...binaryKeys].filter(key => this.state(key)).map(key => `<button data-info="${key}" ${this.running(key) ? 'class="error"' : ''}><small>${esc(labels[key])}</small><strong>${['unknown','unavailable'].includes(this.state(key).state) ? 'Ukendt' : this.running(key) ? 'Aktiv' : 'OK'}</strong></button>`).join('')}</div>
       <div class="controls">${controls.map(([key,label]) => {

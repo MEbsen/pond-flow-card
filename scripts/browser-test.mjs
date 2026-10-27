@@ -19,7 +19,7 @@ try {
   });
   await page.locator('[data-key="pump_mode"][data-option="Til"]').click();
   assert.deepEqual(await page.evaluate(()=>window.calls),[['select','select_option',{entity_id:'select.test',option:'Til'}]]);
-  assert.equal(await page.locator('path.active').count(),2);
+  assert.equal(await page.locator('path.active').count(),3);
   await page.evaluate(()=>{
     const card=document.querySelector('pond-flow-card');
     const sensor={state:'8.456789',attributes:{unit_of_measurement:'°C'}};
@@ -56,7 +56,8 @@ try {
     card.setConfig({entities:{pump_running:`binary_sensor.${prefix}_filterpumpe_korer`}});
     card.hass={states,callService:async(...args)=>window.calls.push(args)};
   });
-  assert.equal(await page.locator('path.active').count(),3);
+  assert.equal(await page.locator('path.active').count(),4);
+  assert.equal(await page.locator('.fish').count(),2);
   assert.match(await page.locator('.equipment').first().textContent(),/2,5 h i alt/);
   assert.equal(await page.locator('[data-key="season"]').count(),0);
   assert.equal(await page.locator('[data-key="fill_mode"]').count(),0);
@@ -64,5 +65,8 @@ try {
   assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.garden_pond_controller_skimmer_tilstand',option:'Til'}]);
   await page.locator('[data-key="skimmer_plan"][data-option="Interval"]').click();
   assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.garden_pond_controller_skimmer_plan',option:'Interval'}]);
+  await page.setViewportSize({width:360,height:900});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth),true);
+  await page.screenshot({path:'preview-mobile.png',fullPage:true});
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }

@@ -1,0 +1,33 @@
+// Embed the approved native SVG concept into the standalone HACS module.
+import {readFile,writeFile} from 'node:fs/promises';
+let svg=await readFile('docs/pond-section-concept.svg','utf8');
+svg=svg.replace('width="1200" height="760" viewBox="0 0 1200 760"','viewBox="0 175 1200 455"');
+svg=svg.slice(0,svg.indexOf('<!-- Tilstandsstribe'))+'</svg>';
+const start=svg.indexOf('<text x="48" y="51"');
+svg=svg.slice(0,start)+svg.slice(svg.indexOf('<!-- Tydeligt'));
+svg=svg.replace('<svg xmlns=', '<svg class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald" xmlns=');
+for(const path of ['M391 502H650L795 462H913','M1026 365H1060V251H846','M846 258H819V290H791V322H764V344L739 362']) {
+  svg=svg.replace(`d="${path}" class="flow"`,`d="${path}" class="flow ${'${active ? \'active\' : \'\'}'}"`);
+  svg=svg.replace(`class="flow" d="${path}"`,`class="flow ${'${active ? \'active\' : \'\'}'}" d="${path}"`);
+}
+svg=svg.replace('<path d="M249 365H216" fill="none" stroke="#287785" stroke-width="2" marker-end="url(#arrow)"/>','<path d="M249 365H216" class="flow ${demo || this.running(\'skimmer_running\') ? \'active\' : \'\'}" marker-end="url(#arrow)"/>');
+svg=svg.replace('<path d="M370 492V514M359 503H381"','<path class="${active ? \'rotor\' : \'\'}" d="M370 492V514M359 503H381"');
+svg=svg.replace('fill="#b9a6c7"','fill="${demo || this.running(\'uv_running\') ? \'#b9a6c7\' : \'#86948e\'}"');
+svg=svg.replace('Overfladerens · kører','Overfladerens · ${esc(operating(\'skimmer_running\'))}');
+svg=svg.replace('Filterpumpe · kører','Filterpumpe · ${esc(operating(\'pump_running\'))}');
+svg=svg.replace('UV-C tændt','UV-C · ${esc(operating(\'uv_running\'))}');
+let temperatureIndex=0;
+svg=svg.replaceAll('23,1 °C',()=>temperatureIndex++ === 0 ? '${val(\'temp_surface\',\'23,1 °C\')}' : '${val(\'temp_bottom\',\'23,1 °C\')}');
+svg=svg.replace('48 cm','${val(\'water_level\',\'48 cm\')}');
+const info=[['x="670" y="446"','temp_surface'],['x="559" y="532"','temp_bottom'],['x="104" y="453"','water_level'],['x="343" y="606"','pump_running'],['x="1094" y="425"','uv_running'],['x="68" y="238"','skimmer_running']];
+for(const [position,key] of info) svg=svg.replace(position,`${position} data-info="${key}"`);
+svg=svg.replace('<!-- Filterpumpe og trykledning. -->',`<!-- Fish are decorative silhouettes, not live measurements. -->
+<g aria-hidden="true" class="fish" transform="translate(350 425)"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#9b7353" opacity=".78"/><path d="M-3-6L5-13L9-6" fill="#9b7353" opacity=".6"/></g>
+<g aria-hidden="true" class="fish" transform="translate(595 480) scale(-.8 .8)"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#737d73" opacity=".8"/><path d="M-3-6L5-13L9-6" fill="#737d73" opacity=".6"/></g>
+<!-- Filterpumpe og trykledning. -->`);
+svg=svg.replace('text{font-family:', '.pond-diagram text{font-family:').replace('stroke-width:3;stroke-dasharray:7 9','stroke-width:3;stroke-dasharray:7 9;opacity:.3').replace('</style>', '.flow.active{opacity:1}.fish{pointer-events:none}</style>');
+let card=await readFile('pond-flow-card.js','utf8');
+const from=card.indexOf('<svg '),to=card.indexOf('</svg>',from)+6;
+if(from<0 || to<6) throw Error('Card SVG not found');
+card=card.slice(0,from)+svg+card.slice(to);
+await writeFile('pond-flow-card.js',card);
