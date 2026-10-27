@@ -36,6 +36,22 @@ svg=svg.replace('<g opacity=".68"><ellipse',`<g data-info="aerator_running" aria
 <ellipse class="ripple" cx="560" cy="364" rx="46" ry="8"/>
 </g><ellipse`);
 svg=svg.replace('Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald','Snit gennem dammen med fisk, skimmer, beluftning med springvand, filterpumpe, trykfilter med UV-C og vandfald');
+// Side elevation: horizontal spillway lips, then visibly free falling water.
+svg=svg.replaceAll('M1026 365H1060V251H846','M1026 365H1060V246H884V256H874').replace('M993 251H949','M993 246H949');
+const waterfallStart=svg.indexOf('<path d="M846 269');
+const waterfallEnd=svg.indexOf('<!-- Skimmer',waterfallStart);
+if(waterfallStart<0 || waterfallEnd<0) throw Error('Waterfall geometry not found');
+svg=svg.slice(0,waterfallStart)+`<g data-section="waterfall" aria-label="Trappevandfald set fra siden">
+<path d="M896 264H840V304H795V344H750V363H900Z" fill="#303a36" stroke="#59665b" stroke-width="2"/>
+<path d="M888 248V268H836V260M840 288V308H791V300M795 328V348H746V340" fill="none" stroke="#7b877b" stroke-width="7" stroke-linejoin="miter"/>
+<path d="M840 270V289M795 310V329M750 350V361" fill="none" stroke="#202b29" stroke-width="3"/>
+<g class="waterfall-water ${'${active ? \'running\' : \'\'}'}">
+<path d="M874 256H840Q834 256 834 263Q825 276 825 296H795Q789 296 789 303Q780 316 780 336H750Q744 336 744 343Q736 354 732 362" fill="none" stroke="#62aaba" stroke-width="8" stroke-linecap="round"/>
+<path class="flow ${'${active ? \'active\' : \'\'}'}" d="M874 256H840Q834 256 834 263Q825 276 825 296H795Q789 296 789 303Q780 316 780 336H750Q744 336 744 343Q736 354 732 362"/>
+<path class="waterfall-splash" d="M723 359L719 354M732 358V352M741 359L747 353"/>
+<ellipse class="waterfall-ripple" cx="728" cy="364" rx="23" ry="4"/>
+</g></g>
+`+svg.slice(waterfallEnd);
 // Add depth below the fixed surface; equipment above ground keeps its scale.
 const waterShape='M141 362H748L711 ${474+depth}Q679 ${547+depth} 584 ${550+depth}H288Q198 ${546+depth} 182 ${483+depth}Z';
 const shapes={

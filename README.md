@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.5.3 viser trappevandfaldet rent fra siden: tre vandrette overløbskanter med frit faldende vand imellem og plask/ringe ved dammens overflade. Vandstrømmen er kun synlig, når filterpumpens status er aktiv. Animationerne bevarer deres tidslinje under nye HA-data.
+
 Version 0.5.2 tilpasser dammens tegnede dybde til antallet af fisk. Fiskene fordeles i lag med op til tre fisk pr. svømmehøjde. Fra fire fisk vokser vandområdet nedad, og bund, filterpumpe og bundmålepunkt følger med. Skimmer, overflade, beluftning og trykfilter holder deres placering. De viste HA-målinger påvirkes ikke. Flere fisk kræver mere lodret plads; øg eventuelt kortets højde i dashboardets grid, eller rul i kortet.
 
 ## Personlige fisk (v0.5.0)

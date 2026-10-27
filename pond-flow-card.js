@@ -122,7 +122,8 @@ class PondFlowCard extends HTMLElement {
       @container(max-width:560px){header{padding:16px 14px 8px;gap:8px;flex-wrap:wrap}.metrics{padding:10px 14px}.equipment{padding:8px 14px 14px}.controls{grid-template-columns:1fr;padding:4px 14px 16px}.control{flex-wrap:nowrap}.options{justify-content:flex-end}.status{padding:12px 14px}details{padding:0 14px 14px}.metric{padding:10px 8px}.metric strong{font-size:16px}.badge{max-width:100%;overflow-wrap:anywhere}}
       .fountain{display:none}.fountain.running{display:inline}.fountain path{fill:none;stroke:#8ed4e1;stroke-width:3;stroke-linecap:round;stroke-dasharray:5 8;animation:spray 1.2s linear infinite}.fountain path:nth-child(2n){animation-delay:-.6s}.fountain .ripple{fill:none;stroke:#8ed4e1;stroke-width:2;opacity:.6;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes spray{to{stroke-dashoffset:-26}}@keyframes pond-ripple{50%{opacity:.2;stroke-width:4}}
       .fish-name-swim{animation:fish-name-swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);pointer-events:none}@keyframes fish-name-swim{0%,100%{transform:translateX(50px)}46%,50%{transform:translateX(-60px)}96%{transform:translateX(50px)}}.pond-diagram .fish-name{font-size:17px;font-weight:600;fill:var(--primary-text-color,#e1e8e9);stroke:#183640;stroke-width:3px;paint-order:stroke fill;stroke-linejoin:round}
-      @media(prefers-reduced-motion:reduce){.fish-swim,.fish-name-swim,.fish-bubble,.skimmer-current.moving path,.fountain path,.fountain .ripple{animation:none}}
+      .waterfall-water{visibility:hidden}.waterfall-water.running{visibility:visible}.waterfall-water .flow{stroke:#c1e7ed;stroke-width:3}.waterfall-splash{fill:none;stroke:#a3d6df;stroke-width:2;animation:waterfall-splash 1.6s ease-in-out infinite}.waterfall-ripple{fill:none;stroke:#8fc6d1;stroke-width:1.5;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes waterfall-splash{50%{opacity:.3}}
+      @media(prefers-reduced-motion:reduce){.fish-swim,.fish-name-swim,.fish-bubble,.skimmer-current.moving path,.fountain path,.fountain .ripple,.waterfall-splash,.waterfall-ripple{animation:none}}
     </style>
     <ha-card>
       <header data-section="header"><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>
@@ -165,13 +166,19 @@ class PondFlowCard extends HTMLElement {
 <text x="971" y="372" text-anchor="middle" class="small">UV-C</text>
 
 <!-- Returledning til et klart aflæseligt vandfald. -->
-<path class="pipe" d="M1026 365H1060V251H846"/>
-<path class="flow ${active ? 'active' : ''}" d="M1026 365H1060V251H846"/>
-<path d="M993 251H949" fill="none" stroke="#287785" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M846 269H817V301H789V333H762V350H742" fill="none" stroke="#57625b" stroke-width="25" stroke-linejoin="round"/>
-<path d="M846 258H819V290H791V322H764V344L739 362" fill="none" stroke="#73b4c0" stroke-width="8" stroke-linejoin="round"/>
-<path d="M846 258H819V290H791V322H764V344L739 362" class="flow ${active ? 'active' : ''}" stroke="#e0f1f1"/>
-
+<path class="pipe" d="M1026 365H1060V246H884V256H874"/>
+<path class="flow ${active ? 'active' : ''}" d="M1026 365H1060V246H884V256H874"/>
+<path d="M993 246H949" fill="none" stroke="#287785" stroke-width="2" marker-end="url(#arrow)"/>
+<g data-section="waterfall" aria-label="Trappevandfald set fra siden">
+<path d="M896 264H840V304H795V344H750V363H900Z" fill="#303a36" stroke="#59665b" stroke-width="2"/>
+<path d="M888 248V268H836V260M840 288V308H791V300M795 328V348H746V340" fill="none" stroke="#7b877b" stroke-width="7" stroke-linejoin="miter"/>
+<path d="M840 270V289M795 310V329M750 350V361" fill="none" stroke="#202b29" stroke-width="3"/>
+<g class="waterfall-water ${active ? 'running' : ''}">
+<path d="M874 256H840Q834 256 834 263Q825 276 825 296H795Q789 296 789 303Q780 316 780 336H750Q744 336 744 343Q736 354 732 362" fill="none" stroke="#62aaba" stroke-width="8" stroke-linecap="round"/>
+<path class="flow ${active ? 'active' : ''}" d="M874 256H840Q834 256 834 263Q825 276 825 296H795Q789 296 789 303Q780 316 780 336H750Q744 336 744 343Q736 354 732 362"/>
+<path class="waterfall-splash" d="M723 359L719 354M732 358V352M741 359L747 353"/>
+<ellipse class="waterfall-ripple" cx="728" cy="364" rx="23" ry="4"/>
+</g></g>
 <!-- Skimmer i vandlinjen, adskilt fra det kendte filterkredsløb. -->
 <rect x="166" y="350" width="42" height="57" rx="4" fill="#52676d" stroke="#314a52" stroke-width="2"/>
 <rect x="175" y="358" width="26" height="16" fill="#163e4c"/>

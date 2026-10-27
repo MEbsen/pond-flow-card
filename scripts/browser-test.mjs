@@ -20,6 +20,7 @@ try {
   await page.locator('[data-key="pump_mode"][data-option="Til"]').click();
   assert.deepEqual(await page.evaluate(()=>window.calls),[['select','select_option',{entity_id:'select.test',option:'Til'}]]);
   assert.equal(await page.locator('path.active').count(),3);
+  assert.equal(await page.locator('.waterfall-water').evaluate(el=>getComputedStyle(el).visibility),'visible');
   await page.evaluate(()=>{
     const card=document.querySelector('pond-flow-card');
     const sensor={state:'8.456789',attributes:{unit_of_measurement:'°C'}};
@@ -42,6 +43,7 @@ try {
   });
   assert.equal(await page.locator('[data-key]:enabled').count(),0);
   assert.equal(await page.locator('path.active').count(),0);
+  assert.equal(await page.locator('.waterfall-water').evaluate(el=>getComputedStyle(el).visibility),'hidden');
   await page.evaluate(()=>{
     const card=document.querySelector('pond-flow-card');
     const prefix='garden_pond_controller';
@@ -116,7 +118,7 @@ try {
   const continuity = await page.evaluate(async()=>{
     const card=document.querySelector('pond-flow-card');
     const svg=card.shadowRoot.querySelector('svg');
-    const animated=[...svg.querySelectorAll('.fish-swim,.flow.active,.rotor,.skimmer-current.moving path,.fountain.running path,.ripple')];
+    const animated=[...svg.querySelectorAll('.fish-swim,.flow.active,.rotor,.skimmer-current.moving path,.fountain.running path,.ripple,.waterfall-splash,.waterfall-ripple')];
     const animations=animated.map(el=>el.getAnimations()[0]).filter(Boolean);
     const fish=card.shadowRoot.querySelector('.fish-swim');
     fish.getAnimations()[0].currentTime=21900;
