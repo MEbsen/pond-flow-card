@@ -1,5 +1,9 @@
 # Pond Flow Card
 
+Version 0.2.0 afrunder målinger til én decimal, viser værdier ved udstyret, giver direkte Auto/Til/Fra-knapper og åbner HA-detaljer ved tryk på målinger og status. Vandflow og pumpens rotor animeres ved aktiv pumpestatus. Uændrede HA-opdateringer genstarter ikke animationen.
+
+Entiteter findes automatisk under `garden_pond_controller` ud fra ESPHome-navnene. Brug `entity_prefix` for et andet præfiks og `entities` til manuelle id'er. Under **Entiteter og forbindelser** vises de id'er, kortet bruger, samt manglende entiteter. En eksplicit entitet, der findes, har altid forrang. Manglende id'er kan erstattes af et entydigt match på samme enheds præfiks og friendly name.
+
 SVG-kort til Home Assistant med dam, filterpumpe, trykfilter med UV-C, retur via vandfald og separat IceFree 4 Seasons-isfriholder. Første version 0.1.0.
 
 ![Pond Flow Card med eksempeldata](docs/pond-flow-card.png)

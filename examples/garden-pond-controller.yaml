@@ -1,0 +1,19 @@
+# Bundtemperaturens entity-id er bekræftet fra HA.
+# Øvrige id'er er udledt af ESPHome-navnene og skal kontrolleres i HA.
+type: custom:pond-flow-card
+title: Dammen
+demo: false
+entities:
+  temp_bottom: sensor.garden_pond_controller_dam_temperatur_bund
+  temp_surface: sensor.garden_pond_controller_dam_temperatur_overflade
+  water_level: sensor.garden_pond_controller_vandstand
+  status: sensor.garden_pond_controller_dam_status
+  last_event: sensor.garden_pond_controller_seneste_haendelse
+  pump_running: binary_sensor.garden_pond_controller_filterpumpe_korer
+  uv_running: binary_sensor.garden_pond_controller_uv_c_taendt
+  season: select.garden_pond_controller_saeson
+  pump_mode: select.garden_pond_controller_filterpumpe_tilstand
+  uv_mode: select.garden_pond_controller_uv_c_tilstand
+  aerator_mode: select.garden_pond_controller_luftpumpe_tilstand
+  fill_mode: select.garden_pond_controller_pafyldning_tilstand
+# Isfriholderen tilkobles først, når den har sin egen styringsentitet.
