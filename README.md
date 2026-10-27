@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.6.4 viser UV-C-pæren lodret ned gennem filteret med lys kerne og varm glød ved aktiv status. Gløden er en statusillustration, ikke en temperaturmåling. Skimmerens tidligere strømstreger erstattes af tre større overfladeringe, som trækker sig sammen mod indsugningen. Ringene er skjult, når skimmeren er stoppet eller status mangler.
+
 Version 0.6.3 lader hver enkelt fisk lukke 1–3 bobler ud ved tilfældige tidspunkter. Det gælder også hvert medlem af en flok. Udslippene gentages ikke i en fast animationsløkke, og samme fisk venter på at boblerne er fadet ud, før næste tilfældige udslip. Boblerne følger stadig fiskens størrelse, og deres animation bevares under HA-opdateringer.
 
 Version 0.6.2 giver flokkens fem fisk mere luft imellem sig, med mindre individuelle kroppe inden for samme large-plads. Flokken flytter sig samlet, men hver fisk vender om sit eget centrum med let forskudt timing; formationen spejlvendes ikke længere. Hver fisk har egne bobler, som skaleres med kroppen. Det gælder også small/medium/large-enkeltfisk. Boblernes stigehøjde kompenseres for skaleringen, så de stadig når overfladen.

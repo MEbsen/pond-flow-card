@@ -44,6 +44,8 @@ try {
   assert.equal(await page.locator('[data-key]:enabled').count(),0);
   assert.equal(await page.locator('path.active').count(),0);
   assert.equal(await page.locator('.waterfall-water').evaluate(el=>getComputedStyle(el).visibility),'hidden');
+  assert.equal(await page.locator('.skimmer-current').evaluate(el=>getComputedStyle(el).visibility),'hidden');
+  assert.equal(await page.locator('.uv-glow').evaluate(el=>getComputedStyle(el).opacity),'0');
   await page.evaluate(()=>{
     const card=document.querySelector('pond-flow-card');
     const prefix='garden_pond_controller';
@@ -59,7 +61,18 @@ try {
     card.hass={states,callService:async(...args)=>window.calls.push(args)};
   });
   assert.equal(await page.locator('path.active').count(),3);
-  assert.equal(await page.locator('.skimmer-current.moving path').count(),3);
+  assert.equal(await page.locator('.skimmer-current.moving .intake-ring').count(),3);
+  assert.equal(await page.locator('.uv-glow').evaluate(el=>getComputedStyle(el).opacity),'1');
+  assert.equal(await page.locator('.uv-tube').evaluate(el=>Number(el.getAttribute('height'))>Number(el.getAttribute('width'))),true);
+  const intakeShrinks=await page.locator('.intake-ring').first().evaluate(el=>{
+    const animation=el.getAnimations()[0];
+    animation.pause();animation.currentTime=500;
+    const outer=new DOMMatrixReadOnly(getComputedStyle(el).transform).a;
+    animation.currentTime=2800;
+    const inner=new DOMMatrixReadOnly(getComputedStyle(el).transform).a;
+    animation.play();return inner<outer;
+  });
+  assert.equal(intakeShrinks,true);
   assert.equal(await page.locator('.fish').count(),2);
   assert.equal(await page.locator('.fountain.running').count(),0);
   assert.equal(await page.locator('[data-key="icefree_mode"]').count(),0);
@@ -118,7 +131,7 @@ try {
   const continuity = await page.evaluate(async()=>{
     const card=document.querySelector('pond-flow-card');
     const svg=card.shadowRoot.querySelector('svg');
-    const animated=[...svg.querySelectorAll('.fish-swim,.fish-facing,.flow.active,.rotor,.skimmer-current.moving path,.fountain.running path,.ripple,.waterfall-splash,.waterfall-ripple')];
+    const animated=[...svg.querySelectorAll('.fish-swim,.fish-facing,.flow.active,.rotor,.skimmer-current.moving .intake-ring,.fountain.running path,.ripple,.waterfall-splash,.waterfall-ripple')];
     const animations=animated.map(el=>el.getAnimations()[0]).filter(Boolean);
     const fish=card.shadowRoot.querySelector('.fish-swim');
     fish.getAnimations()[0].currentTime=21900;

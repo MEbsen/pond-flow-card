@@ -12,7 +12,14 @@ for(const path of ['M391 502H650L795 462H913','M1026 365H1060V251H846','M846 258
 }
 svg=svg.replace('<path d="M249 365H216" fill="none" stroke="#287785" stroke-width="2" marker-end="url(#arrow)"/>','<path d="M249 365H216" class="flow ${demo || this.running(\'skimmer_running\') ? \'active\' : \'\'}" marker-end="url(#arrow)"/>');
 svg=svg.replace('<path d="M370 492V514M359 503H381"','<path class="${active ? \'rotor\' : \'\'}" d="M370 492V514M359 503H381"');
-svg=svg.replace('fill="#b9a6c7"','fill="${demo || this.running(\'uv_running\') ? \'#b9a6c7\' : \'#86948e\'}"');
+svg=svg.replace('<rect x="929" y="327" width="83" height="11" rx="5" fill="#b9a6c7"/>',`<g class="uv-lamp ${'${demo || this.running(\'uv_running\') ? \'on\' : \'\'}'}" data-info="uv_running" aria-label="UV-C pære lodret i filteret">
+<rect x="955" y="325" width="30" height="23" rx="5" fill="#748180" stroke="#243c40" stroke-width="2"/>
+<rect class="uv-glow" x="936" y="342" width="68" height="169" rx="30" fill="url(#uv-warmth)"/>
+<rect x="961" y="345" width="18" height="152" rx="8" fill="#536c6d" stroke="#9cad9f" stroke-width="1.5"/>
+<rect class="uv-tube" x="966" y="350" width="8" height="141" rx="4"/>
+</g>`);
+svg=svg.replace('</defs>','<radialGradient id="uv-warmth"><stop stop-color="#ffecaf" stop-opacity=".85"/><stop offset=".45" stop-color="#ffc46c" stop-opacity=".42"/><stop offset="1" stop-color="#ed9f53" stop-opacity="0"/></radialGradient></defs>');
+svg=svg.replace('<text x="971" y="372"','<text x="1045" y="350"');
 svg=svg.replace('Overfladerens · kører','Overfladerens · ${esc(operating(\'skimmer_running\'))}');
 svg=svg.replace('Filterpumpe · kører','Filterpumpe · ${esc(operating(\'pump_running\'))}');
 svg=svg.replace('UV-C tændt','UV-C · ${esc(operating(\'uv_running\'))}');
@@ -26,7 +33,7 @@ svg=svg.replace('text{font-family:', '.pond-diagram text{font-family:').replace(
 // HA theme background, with a restrained dark material palette for the section.
 for(const [light,dark] of Object.entries({'#f4f5f0':'var(--ha-card-background,var(--card-background-color,#1c2328))','#263d43':'var(--primary-text-color,#e1e8e9)','#d9d6cb':'#303635','#b9b6ac':'#4a514c','#d6e9ec':'#21444e','#a7cbd2':'#183640','#e8ebE5':'#354445','#c2cdc5':'#43574e','#93a99d':'#688775','#a8aca3':'#57625b','#b3b9a8':'#596c57','#9b7353':'#c49a72','#737d73':'#9aa99d'})) svg=svg.replaceAll(light,dark);
 svg=svg.replace('<path d="M249 365H216" class="flow ${demo || this.running(\'skimmer_running\') ? \'active\' : \'\'}" marker-end="url(#arrow)"/>',`<g class="skimmer-current ${'${demo || this.running(\'skimmer_running\') ? \'moving\' : \'\'}'}">
-<path d="M325 361Q260 348 190 365V391"/><path d="M330 373Q260 377 190 365V391"/><path d="M316 387Q250 399 190 370V391"/>
+<g transform="translate(186 365)"><ellipse class="intake-ring" cx="95" cy="0" rx="95" ry="14"/><ellipse class="intake-ring" cx="95" cy="0" rx="95" ry="14"/><ellipse class="intake-ring" cx="95" cy="0" rx="95" ry="14"/></g>
 </g>`);
 svg=svg.replace('IceFree 4 Seasons','Beluftning').replace('Vinterudstyr · 5 W · status ikke tilkoblet','${esc(operating(\'aerator_running\'))}');
 svg=svg.replace('x="560" y="220"','x="560" y="220" data-info="aerator_running"');
