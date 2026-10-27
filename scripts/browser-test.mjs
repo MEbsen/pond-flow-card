@@ -209,5 +209,20 @@ try {
   await page.evaluate(()=>document.querySelector('pond-flow-card').setConfig({demo:true}));
   await page.emulateMedia({reducedMotion:'reduce'});
   assert.equal(await page.locator('.fish-bubble').first().evaluate(el=>el.getAnimations().length),0);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  const depthLayout=await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    card.setConfig({demo:true,fish:Array.from({length:18},(_,i)=>({id:'fish-'+i,name:'Fisk '+(i+1),color:['#d8a657','#e0ddd4','#b87962'][i%3]}))});
+    const svg=card.shadowRoot.querySelector('.pond-diagram');
+    const positions=card.fish();
+    return {depth:card.pondDepth(),height:svg.viewBox.baseVal.height,levels:new Set(positions.map(fish=>fish.y)).size,
+      inside:positions.every(fish=>fish.y-16>362 && fish.y+25<550+card.pondDepth()),
+      clip:card.shadowRoot.querySelector('[data-section="fish-school"]').getAttribute('clip-path')};
+  });
+  assert.deepEqual(depthLayout,{depth:240,height:695,levels:6,inside:true,clip:'url(#fish-water)'});
+  assert.equal(await page.locator('.fish').count(),18);
+  await page.screenshot({path:'preview-many-fish.png',fullPage:true});
+  await page.setViewportSize({width:360,height:900});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth),true);
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }

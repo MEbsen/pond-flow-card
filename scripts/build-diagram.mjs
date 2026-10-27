@@ -36,6 +36,22 @@ svg=svg.replace('<g opacity=".68"><ellipse',`<g data-info="aerator_running" aria
 <ellipse class="ripple" cx="560" cy="364" rx="46" ry="8"/>
 </g><ellipse`);
 svg=svg.replace('Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald','Snit gennem dammen med fisk, skimmer, beluftning med springvand, filterpumpe, trykfilter med UV-C og vandfald');
+// Add depth below the fixed surface; equipment above ground keeps its scale.
+const waterShape='M141 362H748L711 ${474+depth}Q679 ${547+depth} 584 ${550+depth}H288Q198 ${546+depth} 182 ${483+depth}Z';
+const shapes={
+ 'M50 342H135L177 485Q192 551 288 556H584Q681 553 714 475L755 342H1150V608H50Z':'M50 342H135L177 ${485+depth}Q192 ${551+depth} 288 ${556+depth}H584Q681 ${553+depth} 714 ${475+depth}L755 342H1150V${608+depth}H50Z',
+ 'M135 342L177 485Q192 551 288 556H584Q681 553 714 475L755 342':'M135 342L177 ${485+depth}Q192 ${551+depth} 288 ${556+depth}H584Q681 ${553+depth} 714 ${475+depth}L755 342',
+ 'M141 362H748L711 474Q679 547 584 550H288Q198 546 182 483Z':waterShape,
+ 'M391 502H650L795 462H913':'M391 ${502+depth}H650L795 462H913',
+ 'M520 502H559':'M520 ${502+depth}H559',
+ 'M115 363V550M109 363H121M109 550H121':'M115 363V${550+depth}M109 363H121M109 ${550+depth}H121',
+ 'M343 535V581':'M343 ${535+depth}V${581+depth}'
+};
+for(const [original,dynamic] of Object.entries(shapes)) svg=svg.replaceAll(original,dynamic);
+svg=svg.replace('viewBox="0 175 1200 455"','viewBox="0 175 1200 ${455+depth}"').replace('height="760"','height="${760+depth}"');
+svg=svg.replace(/(<rect x="290"[\s\S]*?stroke="#b8d6dc" stroke-width="3"\/>)/, '<g transform="translate(0 ${depth})">$1</g>');
+for(const [x,y] of [[469,527],[500,530],[559,532],[343,606]]) svg=svg.replace(`x="${x}" y="${y}"`,`x="${x}" y="${'${'+y+'+depth}'}"`).replace(`cx="${x}" cy="${y}"`,`cx="${x}" cy="${'${'+y+'+depth}'}"`);
+svg=svg.replace('</defs>',`<clipPath id="fish-water"><path d="${waterShape}"/></clipPath></defs>`).replace('<g data-section="fish-school">','<g data-section="fish-school" clip-path="url(#fish-water)">');
 let card=await readFile('pond-flow-card.js','utf8');
 const from=card.indexOf('<svg '),to=card.indexOf('</svg>',from)+6;
 if(from<0 || to<6) throw Error('Card SVG not found');
