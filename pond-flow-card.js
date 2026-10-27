@@ -40,7 +40,27 @@ function patchNode(current, next) {
 }
 class PondFlowCard extends HTMLElement {
   constructor() { super(); this.attachShadow({mode:'open'}); }
-  setConfig(config) { this.config = {...config}; this.signature = ''; this.render(); }
+  setConfig(config) {
+    if (config.fish !== undefined && !Array.isArray(config.fish)) throw new Error('fish skal være en liste med navn og farve.');
+    if (config.fish?.some(fish => !fish || typeof fish !== 'object' || Array.isArray(fish))) throw new Error('Hver fisk skal have name og color.');
+    const ids = config.fish?.map((fish,index)=>String(fish.id ?? index));
+    if (ids && new Set(ids).size !== ids.length) throw new Error('Hver fisk skal have et unikt id.');
+    this.config = {...config}; this.signature = ''; this.render();
+  }
+  fish() {
+    return (this.config.fish ?? [{id:'default-1',color:'#c49a72'},{id:'default-2',color:'#9aa99d'}]).map((fish,index)=>({
+      id:String(fish.id ?? index),name:String(fish.name ?? ''),
+      color:typeof fish.color === 'string' && CSS.supports('color',fish.color) ? fish.color : '#c49a72',
+      x:320+(index*173)%290,y:420+(index*29)%57,duration:22+(index%5)*4,delay:-(index*7.3)%26
+    }));
+  }
+  fishMarkup() {
+    return this.fish().map(fish => `<g class="fish" data-section="fish-${esc(fish.id)}" role="img" aria-label="${esc(fish.name || 'Fisk')}" transform="translate(${fish.x} ${fish.y})" style="--swim-duration:${fish.duration}s;--swim-delay:${fish.delay}s;--bubble-rise:${362-fish.y}px">
+      <title>${esc(fish.name || 'Fisk')}</title><g class="fish-swim">
+      <path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="${esc(fish.color)}" opacity=".85"/><path d="M-3-6L5-13L9-6" fill="${esc(fish.color)}" opacity=".65"/>
+      ${this.config.fish_bubbles === false ? '' : '<g class="fish-bubbles" aria-hidden="true"><circle class="fish-bubble" cx="-23" cy="-2" r="2.5"/><circle class="fish-bubble" cx="-23" cy="-2" r="1.8"/><circle class="fish-bubble" cx="-23" cy="-2" r="2"/></g>'}
+      </g></g>`).join('');
+  }
   set hass(hass) {
     this._hass = hass;
     if (!this.config) return;
@@ -94,11 +114,12 @@ class PondFlowCard extends HTMLElement {
       svg{width:100%;height:auto;min-height:160px;flex:1 0 auto;display:block}ha-card> :not(svg){flex-shrink:0}svg text{font-family:system-ui;fill:#d7e9ed;font-size:13px}.flow{fill:none;stroke:#53d5db;stroke-width:7;stroke-linecap:round;stroke-dasharray:9 14;opacity:.28}.active{opacity:1;animation:water 2s linear infinite}@keyframes water{to{stroke-dashoffset:-48}}@media(prefers-reduced-motion:reduce){.active{animation:none}}
       .controls{padding:4px 24px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.control{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}.control select{max-width:115px;padding:8px;border:1px solid #7196a550;border-radius:8px;background:var(--card-background-color,#193340);color:inherit}.status{padding:12px 24px;border-top:1px solid #7196a530;font-size:12px;line-height:1.6}.error{color:#f9a99b}.note{opacity:.65;font-size:11px}@media(max-width:420px){.controls{grid-template-columns:1fr}.metrics{padding:12px}.metric strong{font-size:15px}}
       [data-info]{cursor:pointer}.diagram-value{font-size:15px;font-weight:600;fill:#fff}.equipment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 24px 18px}.equipment button{font:inherit;text-align:left;color:inherit;background:#7396a415;border:1px solid #7196a530;border-radius:10px;padding:10px;cursor:pointer}.equipment small{display:block}.equipment strong{font-size:13px}.controls button{padding:9px;border-radius:7px;border:1px solid #7196a550;color:inherit;background:transparent;cursor:pointer}.controls button[aria-pressed=true]{background:#438b8b55}.options{display:flex;gap:4px;flex-wrap:wrap}.control{flex-wrap:wrap}.rotor{transform-box:fill-box;transform-origin:center;animation:spin 1.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.rotor{animation:none}}details{padding:0 24px 16px;font-size:12px;overflow-wrap:anywhere}
-      .fish-swim{animation:swim 22s linear infinite;transform-box:view-box;transform-origin:0 0}.fish:nth-of-type(even) .fish-swim{animation-duration:29s;animation-delay:-9s}@keyframes swim{0%{transform:translateX(50px) scaleX(1)}46%{transform:translateX(-60px) scaleX(1)}50%{transform:translateX(-60px) scaleX(-1)}96%{transform:translateX(50px) scaleX(-1)}100%{transform:translateX(50px) scaleX(1)}}
+      .fish-swim{animation:swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);transform-box:view-box;transform-origin:0 0}@keyframes swim{0%{transform:translateX(50px) scaleX(1)}46%{transform:translateX(-60px) scaleX(1)}50%{transform:translateX(-60px) scaleX(-1)}96%{transform:translateX(50px) scaleX(-1)}100%{transform:translateX(50px) scaleX(1)}}
+      .fish-bubble{fill:none;stroke:#b1d8e0;stroke-width:1.2;opacity:0;animation:fish-bubble 5.5s linear infinite;animation-delay:var(--swim-delay,0s)}.fish-bubble:nth-child(2){animation-delay:calc(var(--swim-delay,0s) - 1.8s)}.fish-bubble:nth-child(3){animation-delay:calc(var(--swim-delay,0s) - 3.6s)}@keyframes fish-bubble{0%{transform:translate(0,0);opacity:0}12%{opacity:.65}75%{opacity:.35}100%{transform:translate(-5px,var(--bubble-rise,-60px));opacity:0}}.fish-legend{display:flex;flex-wrap:wrap;gap:8px 16px;padding:0 24px 12px;font-size:12px}.fish-legend span{display:flex;align-items:center;gap:6px}.fish-legend svg{width:10px;height:10px;min-height:0;flex:none}
       .skimmer-current path{fill:none;stroke:#8ad3dc;stroke-width:3;stroke-linecap:round;opacity:.15}.skimmer-current.moving path{opacity:.9;stroke-dasharray:9 14;animation:intake 1.5s linear infinite}.skimmer-current.moving path:nth-child(2){animation-delay:-.5s}.skimmer-current.moving path:nth-child(3){animation-delay:-1s}@keyframes intake{to{stroke-dashoffset:-46}}
       @container(max-width:560px){header{padding:16px 14px 8px;gap:8px;flex-wrap:wrap}.metrics{padding:10px 14px}.equipment{padding:8px 14px 14px}.controls{grid-template-columns:1fr;padding:4px 14px 16px}.control{flex-wrap:nowrap}.options{justify-content:flex-end}.status{padding:12px 14px}details{padding:0 14px 14px}.metric{padding:10px 8px}.metric strong{font-size:16px}.badge{max-width:100%;overflow-wrap:anywhere}}
       .fountain{display:none}.fountain.running{display:inline}.fountain path{fill:none;stroke:#8ed4e1;stroke-width:3;stroke-linecap:round;stroke-dasharray:5 8;animation:spray 1.2s linear infinite}.fountain path:nth-child(2n){animation-delay:-.6s}.fountain .ripple{fill:none;stroke:#8ed4e1;stroke-width:2;opacity:.6;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes spray{to{stroke-dashoffset:-26}}@keyframes pond-ripple{50%{opacity:.2;stroke-width:4}}
-      @media(prefers-reduced-motion:reduce){.fish-swim,.skimmer-current.moving path,.fountain path,.fountain .ripple{animation:none}}
+      @media(prefers-reduced-motion:reduce){.fish-swim,.fish-bubble,.skimmer-current.moving path,.fountain path,.fountain .ripple{animation:none}}
     </style>
     <ha-card>
       <header data-section="header"><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>
@@ -108,7 +129,7 @@ class PondFlowCard extends HTMLElement {
  <pattern id="earth" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M0 22L22 0" stroke="#4a514c" stroke-width=".6"/></pattern>
  <linearGradient id="water" x2="0" y2="1"><stop stop-color="#21444e"/><stop offset="1" stop-color="#183640"/></linearGradient>
  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1L8 5L0 9" fill="none" stroke="#287785" stroke-width="1.7"/></marker>
- <style>.pond-diagram text{font-family:Segoe UI,Arial,sans-serif;fill:var(--primary-text-color,#e1e8e9)}.label{font-size:17px;font-weight:600}.small{font-size:13px;fill:#63777b}.value{font-size:25px;font-weight:600}.leader{fill:none;stroke:#86979a;stroke-width:1}.pipe{fill:none;stroke:#405a61;stroke-width:12;stroke-linejoin:round;stroke-linecap:round}.flow{fill:none;stroke:#5baebd;stroke-width:3;stroke-dasharray:7 9;opacity:.3}.frame{fill:#f9faf7;stroke:#d8dfdb;stroke-width:1}.flow.active{opacity:1}.fish{pointer-events:none}</style>
+ <style>.pond-diagram text{font-family:Segoe UI,Arial,sans-serif;fill:var(--primary-text-color,#e1e8e9)}.label{font-size:17px;font-weight:600}.small{font-size:13px;fill:#63777b}.value{font-size:25px;font-weight:600}.leader{fill:none;stroke:#86979a;stroke-width:1}.pipe{fill:none;stroke:#405a61;stroke-width:12;stroke-linejoin:round;stroke-linecap:round}.flow{fill:none;stroke:#5baebd;stroke-width:3;stroke-dasharray:7 9;opacity:.3}.frame{fill:#f9faf7;stroke:#d8dfdb;stroke-width:1}.flow.active{opacity:1}.fish{pointer-events:visiblePainted}</style>
 </defs>
 <rect width="1200" height="760" rx="24" fill="var(--ha-card-background,var(--card-background-color,#1c2328))"/>
 <!-- Tydeligt tværsnit: jord, bassinfolie og vand. -->
@@ -123,10 +144,7 @@ class PondFlowCard extends HTMLElement {
 <g fill="none" stroke="#738a70" stroke-width="3" stroke-linecap="round"><path d="M96 337Q71 304 74 276M96 337Q101 294 113 267M96 337Q88 294 92 255M1043 336Q1025 310 1030 289M1043 336Q1055 309 1057 282"/></g>
 <g fill="#596c57" stroke="#8f9b89"><ellipse cx="91" cy="341" rx="27" ry="9"/><ellipse cx="1081" cy="338" rx="31" ry="10"/></g>
 
-<!-- Fish are decorative silhouettes, not live measurements. -->
-<g aria-hidden="true" class="fish" transform="translate(350 425)"><g class="fish-swim"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#c49a72" opacity=".78"/><path d="M-3-6L5-13L9-6" fill="#c49a72" opacity=".6"/></g></g>
-<g aria-hidden="true" class="fish" transform="translate(595 480) scale(-.8 .8)"><g class="fish-swim"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="#9aa99d" opacity=".8"/><path d="M-3-6L5-13L9-6" fill="#9aa99d" opacity=".6"/></g></g>
-<!-- Filterpumpe og trykledning. -->
+<g data-section="fish-school">${this.fishMarkup()}</g><!-- Filterpumpe og trykledning. -->
 <path class="pipe" d="M391 502H650L795 462H913"/>
 <path class="flow ${active ? 'active' : ''}" d="M391 502H650L795 462H913"/>
 <path d="M520 502H559" fill="none" stroke="#287785" stroke-width="2" marker-end="url(#arrow)"/>
@@ -175,6 +193,7 @@ class PondFlowCard extends HTMLElement {
 <path class="leader" d="M343 535V581"/><text x="343" y="606" data-info="pump_running" text-anchor="middle" class="label">Filterpumpe · ${esc(operating('pump_running'))}</text>
 
 </svg>
+      ${this.config.fish_names === false || !this.fish().some(fish=>fish.name) ? '' : `<div class="fish-legend" data-section="fish-legend">${this.fish().filter(fish=>fish.name).map(fish=>`<span><svg aria-hidden="true" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="${esc(fish.color)}"/></svg>${esc(fish.name)}</span>`).join('')}</div>`}
       <div class="equipment" data-section="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Beluftning','aerator_hours'],['skimmer_running','Skimmer','skimmer_hours']].map(([key,label,hours]) => `<button data-info="${key}"><small>${label}</small><strong>${esc(operating(key))} · ${val(hours,'2,5 h')} i alt</strong></button>`).join('')}</div>
       ${[...binaryKeys].some(key => this.state(key) && this.state(key).state !== 'off') ? `<div class="equipment alarms" data-section="alarms" role="status">${[...binaryKeys].filter(key => this.state(key) && this.state(key).state !== 'off').map(key => `<button data-info="${key}" class="error"><small>${esc(labels[key])}</small><strong>${['unknown','unavailable'].includes(this.state(key).state) ? 'Status utilgængelig' : 'Aktiv'}</strong></button>`).join('')}</div>` : ''}
       <div class="controls" data-section="controls">${controls.map(([key,label]) => {

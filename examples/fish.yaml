@@ -1,0 +1,15 @@
+type: custom:pond-flow-card
+title: Dammen
+entity_prefix: garden_pond_controller
+fish:
+  - id: guld
+    name: Guld
+    color: '#d8a657'
+  - id: perle
+    name: Perle
+    color: '#e0ddd4'
+  - id: kobber
+    name: Kobber
+    color: '#b87962'
+fish_bubbles: true
+fish_names: true

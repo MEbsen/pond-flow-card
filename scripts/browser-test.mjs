@@ -148,5 +148,45 @@ try {
     return {sameNodes,sameAnimations,advanced,fishProgress,uiPreserved,independent,singleCall:window.calls.length===count+1};
   });
   assert.deepEqual(continuity,{sameNodes:true,sameAnimations:true,advanced:true,fishProgress:true,uiPreserved:true,independent:true,singleCall:true});
+  await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    card.style.height='auto';card.style.width='760px';
+    card.setConfig({demo:true,fish:[{id:'gold',name:'Guld',color:'#d8a657'},{id:'pearl',name:'Perle',color:'ivory'},{id:'test',name:'<img src=x onerror=alert(1)>',color:'red;stroke:black'}]});
+  });
+  assert.equal(await page.locator('.fish').count(),3);
+  assert.equal(await page.locator('.fish-bubble').count(),9);
+  assert.match(await page.locator('.fish-legend').textContent(),/Guld/);
+  assert.equal(await page.locator('.fish-legend img').count(),0);
+  assert.equal(await page.locator('.fish[data-section="fish-gold"] path').first().getAttribute('fill'),'#d8a657');
+  assert.equal(await page.locator('.fish[data-section="fish-test"] path').first().getAttribute('fill'),'#c49a72');
+  const bubbleContinuity=await page.evaluate(async()=>{
+    const card=document.querySelector('pond-flow-card');
+    const bubble=card.shadowRoot.querySelector('.fish-bubble');
+    const animation=bubble.getAnimations()[0];
+    animation.currentTime=2500;
+    const before=getComputedStyle(bubble).transform;
+    const opacity=Number(getComputedStyle(bubble).opacity);
+    card.hass={...card._hass,states:{...card._hass.states,'sensor.garden_pond_controller_dam_temperatur_bund':{state:'12.3',attributes:{}}}};
+    await new Promise(resolve=>setTimeout(resolve,100));
+    return {same:bubble.getAnimations()[0]===animation,moving:getComputedStyle(bubble).transform!==before,visible:opacity>0};
+  });
+  assert.deepEqual(bubbleContinuity,{same:true,moving:true,visible:true});
+  await page.setViewportSize({width:820,height:1100});
+  await page.evaluate(()=>{
+    const card=document.createElement('pond-flow-card');
+    card.style.height='auto';
+    document.querySelector('pond-flow-card').replaceWith(card);
+    card.setConfig({demo:true,fish:[{id:'gold',name:'Guld',color:'#d8a657'},{id:'pearl',name:'Perle',color:'#e0ddd4'},{id:'copper',name:'Kobber',color:'#b87962'}]});
+    window.scrollTo(0,0);
+  });
+  await page.screenshot({path:'preview-fish.png',fullPage:true});
+  await page.evaluate(()=>document.querySelector('pond-flow-card').setConfig({demo:true,fish:[{name:'Guld',color:'orange'}],fish_bubbles:false,fish_names:false}));
+  assert.equal(await page.locator('.fish-bubble').count(),0);
+  assert.equal(await page.locator('.fish-legend').count(),0);
+  await page.evaluate(()=>document.querySelector('pond-flow-card').setConfig({demo:true,fish:[]}));
+  assert.equal(await page.locator('.fish').count(),0);
+  await page.evaluate(()=>document.querySelector('pond-flow-card').setConfig({demo:true}));
+  await page.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await page.locator('.fish-bubble').first().evaluate(el=>el.getAnimations().length),0);
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }

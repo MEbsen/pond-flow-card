@@ -1,5 +1,31 @@
 # Pond Flow Card
 
+## Personlige fisk (v0.5.0)
+
+Tilføj `fish` til kortets YAML for at vælge antal, navne og farver:
+
+```yaml
+type: custom:pond-flow-card
+title: Dammen
+entity_prefix: garden_pond_controller
+fish:
+  - id: guld
+    name: Guld
+    color: '#d8a657'
+  - id: perle
+    name: Perle
+    color: '#e0ddd4'
+  - id: kobber
+    name: Kobber
+    color: '#b87962'
+fish_bubbles: true
+fish_names: true
+```
+
+Hvert punkt tilføjer én fisk. `color` kan være en hex-farve eller en gyldig CSS-farve, fx `orange`. Et unikt `id` bevarer fisken ved omrokering af listen. Navnene vises under diagrammet med farvemarkering og som tekst ved hover på fisken. Fiskene placeres automatisk og svømmer i forskellig takt. Små bobler stiger og fader ud ved overfladen; de illustrerer liv i dammen og er ikke en måling.
+
+`fish_bubbles: false` skjuler bobler, `fish_names: false` skjuler navnelisten, og `fish: []` fjerner fiskene. Uden en `fish`-liste vises de to standardfisk. Konfigurationen gemmes i dashboardet og kræver ingen ændring af ESPHome. Reduceret bevægelse stopper både fisk og bobler.
+
 Version 0.4.2 bevarer SVG-elementer og CSS-animationer ved nye sensormålinger, loghændelser og alarmer. Kun ændrede tekster og attributter opdateres. Fiskene fortsætter gennem hele svømmecyklussen, og vandflow, springvand og rotor genstarter ikke ved uvedkommende dataopdateringer. Åbne indstillinger og fokus bevares også.
 
 Version 0.4.1 samler den flydende enhed under **Beluftning**. Den er samme udstyr som controllerens luftpumpe, bekræftet af brugeren. SVG, status og betjening bruger `aerator_running` / `aerator_mode` (HA: `luftpumpe_koerer` / `luftpumpe_tilstand`). Et lille springvand med fire vandstråler og ringe animeres, når status er `on`; ved stop skjules strålerne. Der er ikke længere et separat IceFree-betjeningsfelt.
