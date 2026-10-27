@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.5.5 gør hastighedsforskellene tydeligere: hver fisk har sin egen målhastighed og sit eget tilfældige skiftetidspunkt. Farten glider mellem 50–150 % af fiskens rolige grundtempo, og nye mål er mindst 25 procentpoint fra det forrige. De første skift er spredt over 1,5–8 sekunder, derefter vælger hver fisk selv næste skift efter 4–12 sekunder. Navnene følger stadig bevægelsen uden hop.
+
 Version 0.5.4 gør fiskenavnene cirka 2/3 af deres tidligere størrelse. Hver fisk vælger uafhængigt en ny målhastighed hvert 6.–14. sekund og glider roligt over mod den (75–125 % af grundhastigheden). Afspilningshastigheden ændres uden at nulstille bevægelsen, og navnet følger samme hastighed. Timeren stoppes, når kortet fjernes.
 
 Version 0.5.3 viser trappevandfaldet rent fra siden: tre vandrette overløbskanter med frit faldende vand imellem og plask/ringe ved dammens overflade. Vandstrømmen er kun synlig, når filterpumpens status er aktiv. Animationerne bevarer deres tidslinje under nye HA-data.

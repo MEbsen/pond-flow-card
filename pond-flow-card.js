@@ -50,9 +50,17 @@ class PondFlowCard extends HTMLElement {
       const swim=fish.querySelector('.fish-swim')?.getAnimations()[0];
       if (!swim || swim.playState !== 'running') return;
       let speed=this.fishSpeeds.get(swim);
-      if (!speed) { speed={current:1,target:1,next:now+6000+Math.random()*8000};this.fishSpeeds.set(swim,speed); }
-      if (now>=speed.next) { speed.target=.75+Math.random()*.5;speed.next=now+6000+Math.random()*8000; }
-      speed.current+=(speed.target-speed.current)*.08;
+      if (!speed) {
+        speed={current:1,target:.65+Math.random()*.7,next:now+1500+Math.random()*6500};
+        this.fishSpeeds.set(swim,speed);
+      }
+      if (now>=speed.next) {
+        let target=.5+Math.random();
+        // A new target must be noticeably different, within a calm speed range.
+        if (Math.abs(target-speed.target)<.25) target=speed.target<=1 ? 1.3 : .65;
+        speed.target=target;speed.next=now+4000+Math.random()*8000;
+      }
+      speed.current+=(speed.target-speed.current)*.12;
       // updatePlaybackRate preserves the playhead; changing duration would jump.
       swim.updatePlaybackRate(speed.current);
       const name=fish.querySelector('.fish-name-swim')?.getAnimations()[0];

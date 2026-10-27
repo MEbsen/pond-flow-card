@@ -235,6 +235,7 @@ try {
     card.fishSpeeds=new WeakMap();
     const swimmers=[...card.shadowRoot.querySelectorAll('.fish-swim')].map(el=>el.getAnimations()[0]);
     const names=[...card.shadowRoot.querySelectorAll('.fish-name-swim')].map(el=>el.getAnimations()[0]);
+    await Promise.all([...swimmers,...names].map(animation=>animation.ready));
     const before=swimmers.map(animation=>animation.currentTime);
     const originalRandom=Math.random;
     try {
@@ -245,13 +246,24 @@ try {
       for(let i=0;i<12;i++) card.updateFishSpeeds(11000+i*250);
     } finally {Math.random=originalRandom;}
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    await Promise.all([...swimmers,...names].map(animation=>animation.ready));
     const rates=swimmers.map(animation=>animation.playbackRate);
     const result={
       independent:rates[0]>1 && rates[1]<1,
-      gentle:rates.every(rate=>rate>.75 && rate<1.25),
+      gentle:rates.every(rate=>rate>.5 && rate<1.5) && rates[0]>1.3 && rates[1]<.7,
       noJump:swimmers.every((animation,i)=>animation.currentTime>=before[i] && animation.currentTime-before[i]<200),
       namesFollow:names.every((animation,i)=>animation.playbackRate===rates[i])
     };
+    try {
+      card.fishSpeeds=new WeakMap();
+      let choice=0;
+      const choices=[.2,0,.8,1,.9,.5];
+      Math.random=()=>choices[choice++%choices.length];
+      card.updateFishSpeeds(0);
+      const second={...card.fishSpeeds.get(swimmers[1])};
+      card.updateFishSpeeds(2000);
+      result.staggered=card.fishSpeeds.get(swimmers[0]).next>2000 && card.fishSpeeds.get(swimmers[1]).next===second.next && card.fishSpeeds.get(swimmers[1]).target===second.target;
+    } finally {Math.random=originalRandom;}
     card.connectedCallback();
     card.remove();
     result.cleanedUp=card.fishSpeedTimer===null;
@@ -259,6 +271,6 @@ try {
     result.reconnected=Boolean(card.fishSpeedTimer);
     return result;
   });
-  assert.deepEqual(speedVariation,{independent:true,gentle:true,noJump:true,namesFollow:true,cleanedUp:true,reconnected:true});
+  assert.deepEqual(speedVariation,{independent:true,gentle:true,noJump:true,namesFollow:true,staggered:true,cleanedUp:true,reconnected:true});
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
 } finally { await browser.close(); }
