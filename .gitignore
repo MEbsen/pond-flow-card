@@ -1,0 +1,6 @@
+pond-controller*.yaml
+secrets*
+.env*
+node_modules/
+preview.png
+Trykfilter-principtegning-1.jpg
