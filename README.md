@@ -2,6 +2,10 @@
 
 SVG-kort til Home Assistant med dam, filterpumpe, trykfilter med UV-C, retur via vandfald og separat IceFree 4 Seasons-isfriholder. Første version 0.1.0.
 
+![Pond Flow Card med eksempeldata](docs/pond-flow-card.png)
+
+[Tilføj repoet i HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=MEbsen&repository=pond-flow-card&category=plugin).
+
 ## Installation med HACS
 
 Tilføj GitHub-repoet som et brugerdefineret repository med typen **Dashboard**, download kortet, og kontrollér at ressourcen er registreret som JavaScript-modul:
