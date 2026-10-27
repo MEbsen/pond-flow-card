@@ -155,8 +155,9 @@ try {
   });
   assert.equal(await page.locator('.fish').count(),3);
   assert.equal(await page.locator('.fish-bubble').count(),9);
-  assert.match(await page.locator('.fish-legend').textContent(),/Guld/);
-  assert.equal(await page.locator('.fish-legend img').count(),0);
+  assert.match(await page.locator('.fish-name').first().textContent(),/Guld/);
+  assert.equal(await page.locator('.fish-legend').count(),0);
+  assert.equal(await page.locator('.fish-name img').count(),0);
   assert.equal(await page.locator('.fish[data-section="fish-gold"] path').first().getAttribute('fill'),'#d8a657');
   assert.equal(await page.locator('.fish[data-section="fish-test"] path').first().getAttribute('fill'),'#c49a72');
   const bubbleContinuity=await page.evaluate(async()=>{
@@ -171,6 +172,25 @@ try {
     return {same:bubble.getAnimations()[0]===animation,moving:getComputedStyle(bubble).transform!==before,visible:opacity>0};
   });
   assert.deepEqual(bubbleContinuity,{same:true,moving:true,visible:true});
+  const nameTracking=await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    const fish=card.shadowRoot.querySelector('.fish[data-section="fish-gold"]');
+    const swimmer=fish.querySelector('.fish-swim'),label=fish.querySelector('.fish-name-swim');
+    const bodyAnimation=swimmer.getAnimations()[0],labelAnimation=label.getAnimations()[0];
+    bodyAnimation.pause();labelAnimation.pause();
+    const phases=[0,10560,11000,15000,21560];
+    const readable=phases.every(time=>{
+      bodyAnimation.currentTime=time;labelAnimation.currentTime=time;
+      const body=new DOMMatrixReadOnly(getComputedStyle(swimmer).transform);
+      const name=new DOMMatrixReadOnly(getComputedStyle(label).transform);
+      return Math.abs(body.m41-name.m41)<.1 && name.m11===1;
+    });
+    card.hass={...card._hass,states:{...card._hass.states,'sensor.garden_pond_controller_dam_temperatur_bund':{state:'13.4',attributes:{}}}};
+    const preserved=label.getAnimations()[0]===labelAnimation;
+    bodyAnimation.play();labelAnimation.play();
+    return {readable,preserved};
+  });
+  assert.deepEqual(nameTracking,{readable:true,preserved:true});
   await page.setViewportSize({width:820,height:1100});
   await page.evaluate(()=>{
     const card=document.createElement('pond-flow-card');
@@ -183,6 +203,7 @@ try {
   await page.evaluate(()=>document.querySelector('pond-flow-card').setConfig({demo:true,fish:[{name:'Guld',color:'orange'}],fish_bubbles:false,fish_names:false}));
   assert.equal(await page.locator('.fish-bubble').count(),0);
   assert.equal(await page.locator('.fish-legend').count(),0);
+  assert.equal(await page.locator('.fish-name').count(),0);
   await page.evaluate(()=>document.querySelector('pond-flow-card').setConfig({demo:true,fish:[]}));
   assert.equal(await page.locator('.fish').count(),0);
   await page.evaluate(()=>document.querySelector('pond-flow-card').setConfig({demo:true}));
