@@ -65,6 +65,10 @@ class PondFlowCard extends HTMLElement {
       swim.updatePlaybackRate(speed.current);
       const name=fish.querySelector('.fish-name-swim')?.getAnimations()[0];
       if (name && name.playState === 'running') name.updatePlaybackRate(speed.current);
+      fish.querySelectorAll('.fish-facing').forEach(member=>{
+        const turn=member.getAnimations()[0];
+        if(turn?.playState==='running') turn.updatePlaybackRate(speed.current);
+      });
     });
   }
   setConfig(config) {
@@ -92,15 +96,18 @@ class PondFlowCard extends HTMLElement {
   }
   pondDepth() { return Math.max(0,...this.fish().map(fish=>fish.row+fish.rowSpan-1))*48; }
   fishBodies(fish) {
-    const positions=fish.school?[[0,0],[-12,-6],[12,-6],[-12,6],[12,6]]:[[0,0]];
-    const scale=fish.scale*(fish.school ? .45 : 1);
-    return positions.map(([x,y])=>`<g class="fish-body" transform="translate(${x*fish.scale} ${y*fish.scale}) scale(${scale})"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="${esc(fish.color)}" opacity=".85"/><path d="M-3-6L5-13L9-6" fill="${esc(fish.color)}" opacity=".65"/></g>`).join('');
+    const positions=fish.school?[[0,0],[-15,-9],[15,-9],[-15,9],[15,9]]:[[0,0]];
+    const scale=fish.scale*(fish.school ? .28 : 1);
+    return positions.map(([x,y],index)=>`<g class="fish-member" transform="translate(${x*fish.scale} ${y*fish.scale})" style="--turn-delay:${fish.delay-(fish.school?index*.18:0)}s;--bubble-delay:${fish.delay-index*.7}s;--bubble-rise:${(362-fish.y-y*fish.scale)/scale}px">
+      <g class="fish-scale" transform="scale(${scale})"><g class="fish-facing">
+      <g class="fish-body"><path d="M-24 0Q-10-12 10-7L23-16L19 0L23 16L10 7Q-10 12-24 0Z" fill="${esc(fish.color)}" opacity=".85"/><path d="M-3-6L5-13L9-6" fill="${esc(fish.color)}" opacity=".65"/></g>
+      ${this.config.fish_bubbles === false ? '' : '<g class="fish-bubbles" aria-hidden="true"><circle class="fish-bubble" cx="-23" cy="-2" r="2.5"/><circle class="fish-bubble" cx="-23" cy="-2" r="1.8"/><circle class="fish-bubble" cx="-23" cy="-2" r="2"/></g>'}
+      </g></g></g>`).join('');
   }
   fishMarkup() {
     return this.fish().map(fish => `<g class="fish${fish.school?' fish-school':''}" data-section="fish-${esc(fish.id)}" role="img" aria-label="${esc(fish.name || 'Fisk')}${fish.school?' · flok på 5 fisk':''}" transform="translate(${fish.x} ${fish.y})" style="--swim-duration:${fish.duration}s;--swim-delay:${fish.delay}s;--bubble-rise:${362-fish.y}px">
       <title>${esc(fish.name || 'Fisk')}</title><g class="fish-swim">
       ${this.fishBodies(fish)}
-      ${this.config.fish_bubbles === false ? '' : '<g class="fish-bubbles" aria-hidden="true"><circle class="fish-bubble" cx="-23" cy="-2" r="2.5"/><circle class="fish-bubble" cx="-23" cy="-2" r="1.8"/><circle class="fish-bubble" cx="-23" cy="-2" r="2"/></g>'}
       </g>${this.config.fish_names === false || !fish.name ? '' : `<g class="fish-name-swim" aria-hidden="true"><text class="fish-name" x="0" y="25" text-anchor="middle">${esc(fish.name)}</text></g>`}</g>`).join('');
   }
   set hass(hass) {
@@ -157,14 +164,16 @@ class PondFlowCard extends HTMLElement {
       svg{width:100%;height:auto;min-height:160px;flex:1 0 auto;display:block}ha-card> :not(svg){flex-shrink:0}svg text{font-family:system-ui;fill:#d7e9ed;font-size:13px}.flow{fill:none;stroke:#53d5db;stroke-width:7;stroke-linecap:round;stroke-dasharray:9 14;opacity:.28}.active{opacity:1;animation:water 2s linear infinite}@keyframes water{to{stroke-dashoffset:-48}}@media(prefers-reduced-motion:reduce){.active{animation:none}}
       .controls{padding:4px 24px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.control{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}.control select{max-width:115px;padding:8px;border:1px solid #7196a550;border-radius:8px;background:var(--card-background-color,#193340);color:inherit}.status{padding:12px 24px;border-top:1px solid #7196a530;font-size:12px;line-height:1.6}.error{color:#f9a99b}.note{opacity:.65;font-size:11px}@media(max-width:420px){.controls{grid-template-columns:1fr}.metrics{padding:12px}.metric strong{font-size:15px}}
       [data-info]{cursor:pointer}.diagram-value{font-size:15px;font-weight:600;fill:#fff}.equipment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 24px 18px}.equipment button{font:inherit;text-align:left;color:inherit;background:#7396a415;border:1px solid #7196a530;border-radius:10px;padding:10px;cursor:pointer}.equipment small{display:block}.equipment strong{font-size:13px}.controls button{padding:9px;border-radius:7px;border:1px solid #7196a550;color:inherit;background:transparent;cursor:pointer}.controls button[aria-pressed=true]{background:#438b8b55}.options{display:flex;gap:4px;flex-wrap:wrap}.control{flex-wrap:wrap}.rotor{transform-box:fill-box;transform-origin:center;animation:spin 1.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.rotor{animation:none}}details{padding:0 24px 16px;font-size:12px;overflow-wrap:anywhere}
-      .fish-swim{animation:swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);transform-box:view-box;transform-origin:0 0}@keyframes swim{0%{transform:translateX(50px) scaleX(1)}46%{transform:translateX(-60px) scaleX(1)}50%{transform:translateX(-60px) scaleX(-1)}96%{transform:translateX(50px) scaleX(-1)}100%{transform:translateX(50px) scaleX(1)}}
+      .fish-swim{animation:swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);transform-box:view-box;transform-origin:0 0}@keyframes swim{0%,100%{transform:translateX(50px)}46%,50%{transform:translateX(-60px)}96%{transform:translateX(50px)}}
       .fish-bubble{fill:none;stroke:#b1d8e0;stroke-width:1.2;opacity:0;animation:fish-bubble 5.5s linear infinite;animation-delay:var(--swim-delay,0s)}.fish-bubble:nth-child(2){animation-delay:calc(var(--swim-delay,0s) - 1.8s)}.fish-bubble:nth-child(3){animation-delay:calc(var(--swim-delay,0s) - 3.6s)}@keyframes fish-bubble{0%{transform:translate(0,0);opacity:0}12%{opacity:.65}75%{opacity:.35}100%{transform:translate(-5px,var(--bubble-rise,-60px));opacity:0}}
       .skimmer-current path{fill:none;stroke:#8ad3dc;stroke-width:3;stroke-linecap:round;opacity:.15}.skimmer-current.moving path{opacity:.9;stroke-dasharray:9 14;animation:intake 1.5s linear infinite}.skimmer-current.moving path:nth-child(2){animation-delay:-.5s}.skimmer-current.moving path:nth-child(3){animation-delay:-1s}@keyframes intake{to{stroke-dashoffset:-46}}
       @container(max-width:560px){header{padding:16px 14px 8px;gap:8px;flex-wrap:wrap}.metrics{padding:10px 14px}.equipment{padding:8px 14px 14px}.controls{grid-template-columns:1fr;padding:4px 14px 16px}.control{flex-wrap:nowrap}.options{justify-content:flex-end}.status{padding:12px 14px}details{padding:0 14px 14px}.metric{padding:10px 8px}.metric strong{font-size:16px}.badge{max-width:100%;overflow-wrap:anywhere}}
       .fountain{display:none}.fountain.running{display:inline}.fountain path{fill:none;stroke:#8ed4e1;stroke-width:3;stroke-linecap:round;stroke-dasharray:5 8;animation:spray 1.2s linear infinite}.fountain path:nth-child(2n){animation-delay:-.6s}.fountain .ripple{fill:none;stroke:#8ed4e1;stroke-width:2;opacity:.6;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes spray{to{stroke-dashoffset:-26}}@keyframes pond-ripple{50%{opacity:.2;stroke-width:4}}
       .fish-name-swim{animation:fish-name-swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);pointer-events:none}@keyframes fish-name-swim{0%,100%{transform:translateX(50px)}46%,50%{transform:translateX(-60px)}96%{transform:translateX(50px)}}.pond-diagram .fish-name{font-size:11.3px;font-weight:600;fill:var(--primary-text-color,#e1e8e9);stroke:#183640;stroke-width:2px;paint-order:stroke fill;stroke-linejoin:round}
       .waterfall-water{visibility:hidden}.waterfall-water.running{visibility:visible}.waterfall-water .flow{stroke:#c1e7ed;stroke-width:3}.waterfall-splash{fill:none;stroke:#a3d6df;stroke-width:2;animation:waterfall-splash 1.6s ease-in-out infinite}.waterfall-ripple{fill:none;stroke:#8fc6d1;stroke-width:1.5;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes waterfall-splash{50%{opacity:.3}}
-      @media(prefers-reduced-motion:reduce){.fish-swim,.fish-name-swim,.fish-bubble,.skimmer-current.moving path,.fountain path,.fountain .ripple,.waterfall-splash,.waterfall-ripple{animation:none}}
+      .fish-facing{animation:fish-turn var(--swim-duration,22s) linear infinite;animation-delay:var(--turn-delay,0s);transform-box:view-box;transform-origin:0 0}@keyframes fish-turn{0%,46%,100%{transform:scaleX(1)}50%,96%{transform:scaleX(-1)}}
+      .fish-bubble{animation-delay:var(--bubble-delay,0s)}.fish-bubble:nth-child(2){animation-delay:calc(var(--bubble-delay,0s) - 1.8s)}.fish-bubble:nth-child(3){animation-delay:calc(var(--bubble-delay,0s) - 3.6s)}
+      @media(prefers-reduced-motion:reduce){.fish-swim,.fish-facing,.fish-name-swim,.fish-bubble,.skimmer-current.moving path,.fountain path,.fountain .ripple,.waterfall-splash,.waterfall-ripple{animation:none}}
     </style>
     <ha-card>
       <header data-section="header"><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>

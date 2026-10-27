@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.6.2 giver flokkens fem fisk mere luft imellem sig, med mindre individuelle kroppe inden for samme large-plads. Flokken flytter sig samlet, men hver fisk vender om sit eget centrum med let forskudt timing; formationen spejlvendes ikke længere. Hver fisk har egne bobler, som skaleres med kroppen. Det gælder også small/medium/large-enkeltfisk. Boblernes stigehøjde kompenseres for skaleringen, så de stadig når overfladen.
+
 Version 0.6.1 gør flokke kompakte: fem fisk fylder tilsammen højst én large-enkeltfisk. Hver fisk eller flok tæller som én plads i layoutet, så 18 enheder fordeles på seks svømmehøjder, også når alle er flokke. `size` angiver hele flokkens størrelse; standarden er large for både enkeltfisk og flokke. Navnet står med samme afstand som ved en enkeltfisk.
 
 ## Størrelser og fiskeflokke (v0.6.0)

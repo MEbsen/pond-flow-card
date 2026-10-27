@@ -118,7 +118,7 @@ try {
   const continuity = await page.evaluate(async()=>{
     const card=document.querySelector('pond-flow-card');
     const svg=card.shadowRoot.querySelector('svg');
-    const animated=[...svg.querySelectorAll('.fish-swim,.flow.active,.rotor,.skimmer-current.moving path,.fountain.running path,.ripple,.waterfall-splash,.waterfall-ripple')];
+    const animated=[...svg.querySelectorAll('.fish-swim,.fish-facing,.flow.active,.rotor,.skimmer-current.moving path,.fountain.running path,.ripple,.waterfall-splash,.waterfall-ripple')];
     const animations=animated.map(el=>el.getAnimations()[0]).filter(Boolean);
     const fish=card.shadowRoot.querySelector('.fish-swim');
     fish.getAnimations()[0].currentTime=21900;
@@ -284,7 +284,7 @@ try {
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const school=card.shadowRoot.querySelector('.fish-school');
     const animation=school.querySelector('.fish-swim').getAnimations()[0];
-    const sizes=['small','medium','large'].map(id=>card.shadowRoot.querySelector(`[data-section="fish-${id}"] .fish-body`).transform.baseVal.consolidate().matrix.a);
+    const sizes=['small','medium','large'].map(id=>card.shadowRoot.querySelector(`[data-section="fish-${id}"] .fish-scale`).transform.baseVal.consolidate().matrix.a);
     const result={sizes:sizes.map(size=>Number(size.toFixed(2))),schoolMembers:school.querySelectorAll('.fish-body').length,schoolAnimations:school.querySelectorAll('.fish-swim').length,schoolNames:school.querySelectorAll('.fish-name').length,
       sameColor:[...school.querySelectorAll('.fish-body path')].every(path=>path.getAttribute('fill')==='#bfcfd5'),
       speed:animation.effect.getTiming().duration,
@@ -302,7 +302,7 @@ try {
     card.setConfig({demo:true,fish:Array.from({length:18},(_,i)=>({id:'unit-'+i,type:'school',size:'large',name:'Flok '+i}))});
     const bounds=fish=>{
       const points=[...fish.querySelectorAll('.fish-body')].flatMap(body=>{
-        const b=body.getBBox(),m=body.transform.baseVal.consolidate().matrix;
+        const b=body.getBBox(),m=fish.querySelector('.fish-swim').getCTM().inverse().multiply(body.getCTM());
         return [[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].map(([x,y])=>({x:m.a*x+m.c*y+m.e,y:m.b*x+m.d*y+m.f}));
       });
       return {width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),height:Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))};
@@ -312,6 +312,30 @@ try {
       withinLarge:[...card.shadowRoot.querySelectorAll('.fish')].every(fish=>{const b=bounds(fish);return b.width<=47 && b.height<=32;})};
   });
   assert.deepEqual(compactSchools,{units:18,members:90,depth:240,levels:6,withinLarge:true});
+  const individualSchoolTurns=await page.evaluate(async()=>{
+    const card=document.querySelector('pond-flow-card');
+    card.setConfig({demo:true,fish:[{id:'school',type:'school',size:'large',name:'Flokken'},{id:'small',size:'small'},{id:'large',size:'large'}]});
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const school=card.shadowRoot.querySelector('.fish-school');
+    const facing=[...school.querySelectorAll('.fish-facing')];
+    const animations=facing.map(el=>el.getAnimations()[0]);
+    const positions=[...school.querySelectorAll('.fish-member')].map(el=>el.getAttribute('transform'));
+    animations.forEach(animation=>{animation.pause();animation.currentTime=10450;});
+    const turns=facing.map(el=>new DOMMatrixReadOnly(getComputedStyle(el).transform).m11);
+    animations.forEach(animation=>animation.currentTime=17000);
+    const stableFormation=positions.every((position,i)=>school.querySelectorAll('.fish-member')[i].getAttribute('transform')===position);
+    const bubbleSize=id=>{
+      const fish=card.shadowRoot.querySelector(`[data-section="fish-${id}"]`);
+      return fish.querySelector('.fish-bubble').r.baseVal.value*fish.querySelector('.fish-scale').transform.baseVal.consolidate().matrix.a;
+    };
+    const result={bubbleGroups:school.querySelectorAll('.fish-bubbles').length,bubbles:school.querySelectorAll('.fish-bubble').length,
+      staggered:new Set(turns.map(turn=>turn.toFixed(2))).size>1,stableFormation,
+      schoolSmallest:bubbleSize('school')<bubbleSize('small') && bubbleSize('small')<bubbleSize('large'),
+      translationOnly:new DOMMatrixReadOnly(getComputedStyle(school.querySelector('.fish-swim')).transform).m11===1};
+    animations.forEach(animation=>animation.play());
+    return result;
+  });
+  assert.deepEqual(individualSchoolTurns,{bubbleGroups:5,bubbles:15,staggered:true,stableFormation:true,schoolSmallest:true,translationOnly:true});
   await page.setViewportSize({width:820,height:1200});
   await page.screenshot({path:'preview-school.png',fullPage:true});
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');
