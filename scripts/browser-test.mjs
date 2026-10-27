@@ -167,6 +167,7 @@ try {
     const card=document.querySelector('pond-flow-card');
     const bubble=card.shadowRoot.querySelector('.fish-bubble');
     const animation=bubble.getAnimations()[0];
+    animation.play();
     animation.currentTime=2500;
     const before=getComputedStyle(bubble).transform;
     const opacity=Number(getComputedStyle(bubble).opacity);
@@ -336,6 +337,33 @@ try {
     return result;
   });
   assert.deepEqual(individualSchoolTurns,{bubbleGroups:5,bubbles:15,staggered:true,stableFormation:true,schoolSmallest:true,translationOnly:true});
+  const randomBubbleBursts=await page.evaluate(async()=>{
+    const card=document.createElement('pond-flow-card');
+    document.querySelector('pond-flow-card').replaceWith(card);
+    clearInterval(card.fishSpeedTimer);card.fishSpeedTimer=null;
+    card.setConfig({demo:true,fish:[{id:'school',type:'school'}]});
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const groups=[...card.shadowRoot.querySelectorAll('.fish-bubbles')];
+    const originalRandom=Math.random;
+    try {
+      let choice=0;const choices=[0,.5,.8,.3,.6];
+      Math.random=()=>choices[choice++%choices.length];
+      card.updateBubbleBursts(0);
+      const deadlines=groups.map(group=>card.bubbleBursts.get(group).next);
+      Math.random=()=>.9;
+      card.updateBubbleBursts(1000);
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const animations=groups.map(group=>[...group.querySelectorAll('.fish-bubble')].map(el=>el.getAnimations()[0]));
+      const first=animations[0][0];first.currentTime=2500;
+      card.updateBubbleBursts(1100);
+      const notRestarted=first.currentTime>=2500;
+      const individual=animations[0].every(animation=>animation.playState==='running') && animations.slice(1).flat().every(animation=>animation.playState==='paused');
+      first.finish();
+      const fadesOut=Number(getComputedStyle(groups[0].querySelector('.fish-bubble')).opacity)===0;
+      return {staggered:new Set(deadlines).size===5,individual,notRestarted,fadesOut,oneShot:first.effect.getTiming().iterations===1};
+    } finally {Math.random=originalRandom;}
+  });
+  assert.deepEqual(randomBubbleBursts,{staggered:true,individual:true,notRestarted:true,fadesOut:true,oneShot:true});
   await page.setViewportSize({width:820,height:1200});
   await page.screenshot({path:'preview-school.png',fullPage:true});
   console.log('PASS: demo disabled, service payload, pump animation, unavailable entities');

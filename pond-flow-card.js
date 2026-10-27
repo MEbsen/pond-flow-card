@@ -39,11 +39,26 @@ function patchNode(current, next) {
   while(current.childNodes.length>wanted.length) current.lastChild.remove();
 }
 class PondFlowCard extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:'open'}); this.fishSpeeds = new WeakMap(); }
+  constructor() { super(); this.attachShadow({mode:'open'}); this.fishSpeeds = new WeakMap(); this.bubbleBursts = new WeakMap(); }
   connectedCallback() {
-    if (!this.fishSpeedTimer) this.fishSpeedTimer = setInterval(()=>this.updateFishSpeeds(),250);
+    if (!this.fishSpeedTimer) this.fishSpeedTimer = setInterval(()=>{this.updateFishSpeeds();this.updateBubbleBursts();},250);
   }
   disconnectedCallback() { clearInterval(this.fishSpeedTimer); this.fishSpeedTimer = null; }
+  updateBubbleBursts(now=performance.now()) {
+    if(document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.shadowRoot.querySelectorAll('.fish-bubbles').forEach(group=>{
+      let burst=this.bubbleBursts.get(group);
+      if(!burst) {burst={next:now+800+Math.random()*9000};this.bubbleBursts.set(group,burst);}
+      if(now<burst.next) return;
+      const count=1+Math.min(2,Math.floor(Math.random()*3));
+      [...group.querySelectorAll('.fish-bubble')].slice(0,count).forEach(circle=>{
+        const animation=circle.getAnimations()[0];
+        if(animation) {animation.currentTime=0;animation.play();}
+      });
+      // Allow the whole burst to fade before this fish can emit another one.
+      burst.next=now+6500+Math.random()*9000;
+    });
+  }
   updateFishSpeeds(now=performance.now()) {
     if (document.hidden) return;
     this.shadowRoot.querySelectorAll('.fish').forEach(fish=>{
@@ -165,14 +180,14 @@ class PondFlowCard extends HTMLElement {
       .controls{padding:4px 24px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.control{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}.control select{max-width:115px;padding:8px;border:1px solid #7196a550;border-radius:8px;background:var(--card-background-color,#193340);color:inherit}.status{padding:12px 24px;border-top:1px solid #7196a530;font-size:12px;line-height:1.6}.error{color:#f9a99b}.note{opacity:.65;font-size:11px}@media(max-width:420px){.controls{grid-template-columns:1fr}.metrics{padding:12px}.metric strong{font-size:15px}}
       [data-info]{cursor:pointer}.diagram-value{font-size:15px;font-weight:600;fill:#fff}.equipment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px 24px 18px}.equipment button{font:inherit;text-align:left;color:inherit;background:#7396a415;border:1px solid #7196a530;border-radius:10px;padding:10px;cursor:pointer}.equipment small{display:block}.equipment strong{font-size:13px}.controls button{padding:9px;border-radius:7px;border:1px solid #7196a550;color:inherit;background:transparent;cursor:pointer}.controls button[aria-pressed=true]{background:#438b8b55}.options{display:flex;gap:4px;flex-wrap:wrap}.control{flex-wrap:wrap}.rotor{transform-box:fill-box;transform-origin:center;animation:spin 1.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.rotor{animation:none}}details{padding:0 24px 16px;font-size:12px;overflow-wrap:anywhere}
       .fish-swim{animation:swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);transform-box:view-box;transform-origin:0 0}@keyframes swim{0%,100%{transform:translateX(50px)}46%,50%{transform:translateX(-60px)}96%{transform:translateX(50px)}}
-      .fish-bubble{fill:none;stroke:#b1d8e0;stroke-width:1.2;opacity:0;animation:fish-bubble 5.5s linear infinite;animation-delay:var(--swim-delay,0s)}.fish-bubble:nth-child(2){animation-delay:calc(var(--swim-delay,0s) - 1.8s)}.fish-bubble:nth-child(3){animation-delay:calc(var(--swim-delay,0s) - 3.6s)}@keyframes fish-bubble{0%{transform:translate(0,0);opacity:0}12%{opacity:.65}75%{opacity:.35}100%{transform:translate(-5px,var(--bubble-rise,-60px));opacity:0}}
+      .fish-bubble{fill:none;stroke:#b1d8e0;stroke-width:1.2;opacity:0;animation:fish-bubble 5.5s linear 1 both paused;animation-delay:0s}.fish-bubble:nth-child(2){animation-delay:.2s}.fish-bubble:nth-child(3){animation-delay:.4s}@keyframes fish-bubble{0%{transform:translate(0,0);opacity:0}12%{opacity:.65}75%{opacity:.35}100%{transform:translate(-5px,var(--bubble-rise,-60px));opacity:0}}
       .skimmer-current path{fill:none;stroke:#8ad3dc;stroke-width:3;stroke-linecap:round;opacity:.15}.skimmer-current.moving path{opacity:.9;stroke-dasharray:9 14;animation:intake 1.5s linear infinite}.skimmer-current.moving path:nth-child(2){animation-delay:-.5s}.skimmer-current.moving path:nth-child(3){animation-delay:-1s}@keyframes intake{to{stroke-dashoffset:-46}}
       @container(max-width:560px){header{padding:16px 14px 8px;gap:8px;flex-wrap:wrap}.metrics{padding:10px 14px}.equipment{padding:8px 14px 14px}.controls{grid-template-columns:1fr;padding:4px 14px 16px}.control{flex-wrap:nowrap}.options{justify-content:flex-end}.status{padding:12px 14px}details{padding:0 14px 14px}.metric{padding:10px 8px}.metric strong{font-size:16px}.badge{max-width:100%;overflow-wrap:anywhere}}
       .fountain{display:none}.fountain.running{display:inline}.fountain path{fill:none;stroke:#8ed4e1;stroke-width:3;stroke-linecap:round;stroke-dasharray:5 8;animation:spray 1.2s linear infinite}.fountain path:nth-child(2n){animation-delay:-.6s}.fountain .ripple{fill:none;stroke:#8ed4e1;stroke-width:2;opacity:.6;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes spray{to{stroke-dashoffset:-26}}@keyframes pond-ripple{50%{opacity:.2;stroke-width:4}}
       .fish-name-swim{animation:fish-name-swim var(--swim-duration,22s) linear infinite;animation-delay:var(--swim-delay,0s);pointer-events:none}@keyframes fish-name-swim{0%,100%{transform:translateX(50px)}46%,50%{transform:translateX(-60px)}96%{transform:translateX(50px)}}.pond-diagram .fish-name{font-size:11.3px;font-weight:600;fill:var(--primary-text-color,#e1e8e9);stroke:#183640;stroke-width:2px;paint-order:stroke fill;stroke-linejoin:round}
       .waterfall-water{visibility:hidden}.waterfall-water.running{visibility:visible}.waterfall-water .flow{stroke:#c1e7ed;stroke-width:3}.waterfall-splash{fill:none;stroke:#a3d6df;stroke-width:2;animation:waterfall-splash 1.6s ease-in-out infinite}.waterfall-ripple{fill:none;stroke:#8fc6d1;stroke-width:1.5;animation:pond-ripple 2.4s ease-in-out infinite}@keyframes waterfall-splash{50%{opacity:.3}}
       .fish-facing{animation:fish-turn var(--swim-duration,22s) linear infinite;animation-delay:var(--turn-delay,0s);transform-box:view-box;transform-origin:0 0}@keyframes fish-turn{0%,46%,100%{transform:scaleX(1)}50%,96%{transform:scaleX(-1)}}
-      .fish-bubble{animation-delay:var(--bubble-delay,0s)}.fish-bubble:nth-child(2){animation-delay:calc(var(--bubble-delay,0s) - 1.8s)}.fish-bubble:nth-child(3){animation-delay:calc(var(--bubble-delay,0s) - 3.6s)}
+      
       @media(prefers-reduced-motion:reduce){.fish-swim,.fish-facing,.fish-name-swim,.fish-bubble,.skimmer-current.moving path,.fountain path,.fountain .ripple,.waterfall-splash,.waterfall-ripple{animation:none}}
     </style>
     <ha-card>
