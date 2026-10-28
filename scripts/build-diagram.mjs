@@ -86,6 +86,11 @@ svg=svg.replace('Filterpumpe · ${esc(operating(\'pump_running\'))}</text>', 'Fi
 svg=svg.replace('<text x="670" y="415" text-anchor="end" class="small">OVERFLADE</text><text x="670" y="446" data-info="temp_surface" text-anchor="end" class="value">','<text x="500" y="400" class="small">OVERFLADE</text><text x="590" y="402" data-info="temp_surface" class="temperature-reading">')
  .replace('data-info="temp_bottom" font-size="20" font-weight="600"','data-info="temp_bottom" class="temperature-reading"');
 svg=svg.replace('class="small">UV-C</text>', 'class="label">UV-C</text>').replace('.small{font-size:13px;', '.small{font-size:13px;font-weight:400;').replace('.value{font-size:25px;font-weight:600}', '.temperature-reading{font-size:13px;font-weight:600}');
+svg=svg.replace('y="${596+depth}"','y="${584+depth}"').replace('y="${618+depth}"','y="${601+depth}"').replace('V${581+depth}','V${568+depth}');
+svg=svg.replace('</defs>','<g id="temperature-icon" fill="none" stroke="#9cc7d0" stroke-width="1.7" stroke-linecap="round"><path d="M5 12V4a3 3 0 0 1 6 0v8a5 5 0 1 1-6 0Z"/><path d="M8 6v10"/><circle cx="8" cy="17" r="1.8" fill="#9cc7d0" stroke="none"/></g></defs>');
+const temperature=(key,label,y)=>`<g class="temperature-status" data-info="${key}" transform="translate(475 ${y})"><use href="#temperature-icon" x="0" y="-16"/><text x="23" y="0"><tspan class="small">${label}</tspan><tspan dx="6" class="temperature-reading">${'${val(\''+key+'\',\'23,1 °C\')}'}</tspan></text></g>`;
+svg=svg.replace(/<circle cx="467"[^\n]*/, temperature('temp_surface','OVERFLADE','400'))
+ .replace(/<circle cx="469"[^\n]*/,temperature('temp_bottom','BUND','${530+depth}'));
 const from=card.indexOf('<svg '),to=card.indexOf('</svg>',from)+6;
 if(from<0 || to<6) throw Error('Card SVG not found');
 card=card.slice(0,from)+svg+card.slice(to);
