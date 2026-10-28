@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.6.5 giver den lodrette UV-C-pære en violet glød og viser samlet tændtid direkte ved filterets beskrivelse. UV-C-etiketten er flyttet op over filteret, fri af returledningen. Skimmerringene er fladere, ligger lidt under vandlinjen og afgrænses til dammens vandområde.
+
 Version 0.6.4 viser UV-C-pæren lodret ned gennem filteret med lys kerne og varm glød ved aktiv status. Gløden er en statusillustration, ikke en temperaturmåling. Skimmerens tidligere strømstreger erstattes af tre større overfladeringe, som trækker sig sammen mod indsugningen. Ringene er skjult, når skimmeren er stoppet eller status mangler.
 
 Version 0.6.3 lader hver enkelt fisk lukke 1–3 bobler ud ved tilfældige tidspunkter. Det gælder også hvert medlem af en flok. Udslippene gentages ikke i en fast animationsløkke, og samme fisk venter på at boblerne er fadet ud, før næste tilfældige udslip. Boblerne følger stadig fiskens størrelse, og deres animation bevares under HA-opdateringer.

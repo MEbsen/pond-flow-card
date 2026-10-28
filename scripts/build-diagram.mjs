@@ -18,8 +18,8 @@ svg=svg.replace('<rect x="929" y="327" width="83" height="11" rx="5" fill="#b9a6
 <rect x="961" y="345" width="18" height="152" rx="8" fill="#536c6d" stroke="#9cad9f" stroke-width="1.5"/>
 <rect class="uv-tube" x="966" y="350" width="8" height="141" rx="4"/>
 </g>`);
-svg=svg.replace('</defs>','<radialGradient id="uv-warmth"><stop stop-color="#ffecaf" stop-opacity=".85"/><stop offset=".45" stop-color="#ffc46c" stop-opacity=".42"/><stop offset="1" stop-color="#ed9f53" stop-opacity="0"/></radialGradient></defs>');
-svg=svg.replace('<text x="971" y="372"','<text x="1045" y="350"');
+svg=svg.replace('</defs>','<radialGradient id="uv-warmth"><stop stop-color="#eadbff" stop-opacity=".9"/><stop offset=".45" stop-color="#b58aff" stop-opacity=".5"/><stop offset="1" stop-color="#8642ed" stop-opacity="0"/></radialGradient></defs>');
+svg=svg.replace('<text x="971" y="372"','<text x="970" y="307"');
 svg=svg.replace('Overfladerens · kører','Overfladerens · ${esc(operating(\'skimmer_running\'))}');
 svg=svg.replace('Filterpumpe · kører','Filterpumpe · ${esc(operating(\'pump_running\'))}');
 svg=svg.replace('UV-C tændt','UV-C · ${esc(operating(\'uv_running\'))}');
@@ -33,7 +33,7 @@ svg=svg.replace('text{font-family:', '.pond-diagram text{font-family:').replace(
 // HA theme background, with a restrained dark material palette for the section.
 for(const [light,dark] of Object.entries({'#f4f5f0':'var(--ha-card-background,var(--card-background-color,#1c2328))','#263d43':'var(--primary-text-color,#e1e8e9)','#d9d6cb':'#303635','#b9b6ac':'#4a514c','#d6e9ec':'#21444e','#a7cbd2':'#183640','#e8ebE5':'#354445','#c2cdc5':'#43574e','#93a99d':'#688775','#a8aca3':'#57625b','#b3b9a8':'#596c57','#9b7353':'#c49a72','#737d73':'#9aa99d'})) svg=svg.replaceAll(light,dark);
 svg=svg.replace('<path d="M249 365H216" class="flow ${demo || this.running(\'skimmer_running\') ? \'active\' : \'\'}" marker-end="url(#arrow)"/>',`<g class="skimmer-current ${'${demo || this.running(\'skimmer_running\') ? \'moving\' : \'\'}'}">
-<g transform="translate(186 365)"><ellipse class="intake-ring" cx="95" cy="0" rx="95" ry="14"/><ellipse class="intake-ring" cx="95" cy="0" rx="95" ry="14"/><ellipse class="intake-ring" cx="95" cy="0" rx="95" ry="14"/></g>
+<g transform="translate(186 365)"><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/></g>
 </g>`);
 svg=svg.replace('IceFree 4 Seasons','Beluftning').replace('Vinterudstyr · 5 W · status ikke tilkoblet','${esc(operating(\'aerator_running\'))}');
 svg=svg.replace('x="560" y="220"','x="560" y="220" data-info="aerator_running"');
@@ -75,6 +75,10 @@ svg=svg.replace('viewBox="0 175 1200 455"','viewBox="0 175 1200 ${455+depth}"').
 svg=svg.replace(/(<rect x="290"[\s\S]*?stroke="#b8d6dc" stroke-width="3"\/>)/, '<g transform="translate(0 ${depth})">$1</g>');
 for(const [x,y] of [[469,527],[500,530],[559,532],[343,606]]) svg=svg.replace(`x="${x}" y="${y}"`,`x="${x}" y="${'${'+y+'+depth}'}"`).replace(`cx="${x}" cy="${y}"`,`cx="${x}" cy="${'${'+y+'+depth}'}"`);
 svg=svg.replace('</defs>',`<clipPath id="fish-water"><path d="${waterShape}"/></clipPath></defs>`).replace('<g data-section="fish-school">','<g data-section="fish-school" clip-path="url(#fish-water)">');
+svg=svg.replace('<g class="skimmer-current ', '<g clip-path="url(#fish-water)" class="skimmer-current ');
+svg=svg.replace('<text x="1094" y="405" text-anchor="end"', '<text x="1044" y="405" text-anchor="start"')
+ .replace('<text x="1094" y="425" data-info="uv_running" text-anchor="end"', '<text x="1044" y="425" data-info="uv_running" text-anchor="start"');
+svg=svg.replace('UV-C · ${esc(operating(\'uv_running\'))}</text>', 'UV-C · ${esc(operating(\'uv_running\'))}</text><text x="1044" y="447" data-info="uv_hours" class="small">${val(\'uv_hours\',\'2,5 h\')} tændt i alt</text>');
 let card=await readFile('pond-flow-card.js','utf8');
 const from=card.indexOf('<svg '),to=card.indexOf('</svg>',from)+6;
 if(from<0 || to<6) throw Error('Card SVG not found');

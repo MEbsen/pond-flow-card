@@ -63,6 +63,28 @@ try {
   assert.equal(await page.locator('path.active').count(),3);
   assert.equal(await page.locator('.skimmer-current.moving .intake-ring').count(),3);
   assert.equal(await page.locator('.uv-glow').evaluate(el=>getComputedStyle(el).opacity),'1');
+  assert.match(await page.locator('[data-info="uv_hours"]').textContent(),/2,5 h tændt i alt/);
+  assert.equal(await page.locator('.uv-lamp.on .uv-tube').evaluate(el=>getComputedStyle(el).fill),'rgb(239, 227, 255)');
+  assert.equal(await page.locator('.skimmer-current').getAttribute('clip-path'),'url(#fish-water)');
+  const ringsWithinWater=await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card'),svg=card.shadowRoot.querySelector('.pond-diagram');
+    const water=card.shadowRoot.querySelector('#fish-water path');
+    const rings=[...card.shadowRoot.querySelectorAll('.intake-ring')];
+    return rings.every(ring=>{
+      const animation=ring.getAnimations()[0];animation.pause();
+      const inside=[0,500,1500,3000].every(time=>{
+        animation.currentTime=time;
+        const matrix=svg.getCTM().inverse().multiply(ring.getCTM());
+        return Array.from({length:24},(_,i)=>{
+          const angle=i*Math.PI/12;
+          const point=new DOMPoint(ring.cx.baseVal.value+Math.cos(angle)*ring.rx.baseVal.value,ring.cy.baseVal.value+Math.sin(angle)*ring.ry.baseVal.value).matrixTransform(matrix);
+          return water.isPointInFill(point);
+        }).every(Boolean);
+      });
+      animation.play();return inside;
+    });
+  });
+  assert.equal(ringsWithinWater,true);
   assert.equal(await page.locator('.uv-tube').evaluate(el=>Number(el.getAttribute('height'))>Number(el.getAttribute('width'))),true);
   const intakeShrinks=await page.locator('.intake-ring').first().evaluate(el=>{
     const animation=el.getAnimations()[0];
