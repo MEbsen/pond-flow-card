@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.6.7 ensretter udstyrets navne som fede overskrifter med mindre, almindelig status nedenunder. Filterpumpens navn og status er delt i to linjer i diagrammet. Overflade- og bundtemperatur bruger samme kompakte typografi og vandrette opstilling.
+
 Version 0.6.5 giver den lodrette UV-C-pære en violet glød og viser samlet tændtid direkte ved filterets beskrivelse. UV-C-etiketten er flyttet op over filteret, fri af returledningen. Skimmerringene er fladere, ligger lidt under vandlinjen og afgrænses til dammens vandområde.
 
 Version 0.6.4 viser UV-C-pæren lodret ned gennem filteret med lys kerne og varm glød ved aktiv status. Gløden er en statusillustration, ikke en temperaturmåling. Skimmerens tidligere strømstreger erstattes af tre større overfladeringe, som trækker sig sammen mod indsugningen. Ringene er skjult, når skimmeren er stoppet eller status mangler.

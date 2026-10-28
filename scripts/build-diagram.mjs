@@ -81,6 +81,11 @@ svg=svg.replace('<text x="1094" y="405" text-anchor="end"', '<text x="1044" y="4
 svg=svg.replace('UV-C · ${esc(operating(\'uv_running\'))}</text>', 'UV-C · ${esc(operating(\'uv_running\'))}</text><text x="1044" y="447" data-info="uv_hours" class="small">${val(\'uv_hours\',\'2,5 h\')} tændt i alt</text>');
 let card=await readFile('pond-flow-card.js','utf8');
 svg=svg.replace('Retur via vandfald','Retur').replace('<text x="893" y="223" class="small">Fra trykfilter til dam</text>','');
+svg=svg.replace('Filterpumpe · ${esc(operating(\'pump_running\'))}</text>', 'Filterpumpe</text><text x="343" y="${618+depth}" data-info="pump_running" text-anchor="middle" class="small">${esc(operating(\'pump_running\'))}</text>')
+ .replace('y="${606+depth}" data-info="pump_running"','y="${596+depth}"');
+svg=svg.replace('<text x="670" y="415" text-anchor="end" class="small">OVERFLADE</text><text x="670" y="446" data-info="temp_surface" text-anchor="end" class="value">','<text x="500" y="400" class="small">OVERFLADE</text><text x="590" y="402" data-info="temp_surface" class="temperature-reading">')
+ .replace('data-info="temp_bottom" font-size="20" font-weight="600"','data-info="temp_bottom" class="temperature-reading"');
+svg=svg.replace('class="small">UV-C</text>', 'class="label">UV-C</text>').replace('.small{font-size:13px;', '.small{font-size:13px;font-weight:400;').replace('.value{font-size:25px;font-weight:600}', '.temperature-reading{font-size:13px;font-weight:600}');
 const from=card.indexOf('<svg '),to=card.indexOf('</svg>',from)+6;
 if(from<0 || to<6) throw Error('Card SVG not found');
 card=card.slice(0,from)+svg+card.slice(to);
