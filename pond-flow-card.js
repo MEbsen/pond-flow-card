@@ -265,7 +265,7 @@ class PondFlowCard extends HTMLElement {
 <!-- Etiketter og målepunkter uden krydsende linjer. -->
 <path class="leader" d="M186 347V243H128"/><text x="68" y="218" class="label">Skimmer</text><text x="68" y="238" data-info="skimmer_running" class="small">Overfladerens · ${esc(operating('skimmer_running'))}</text>
 <path class="leader" d="M560 345V235"/><text x="560" y="199" text-anchor="middle" class="label">Beluftning</text><text x="560" y="220" data-info="aerator_running" text-anchor="middle" class="small">${esc(operating('aerator_running'))}</text>
-<text x="893" y="202" class="label">Retur via vandfald</text><text x="893" y="223" class="small">Fra trykfilter til dam</text>
+<text x="893" y="202" class="label">Retur</text>
 <path class="leader" d="M1029 433H1094"/><text x="1044" y="405" text-anchor="start" class="label">Trykfilter</text><text x="1044" y="425" data-info="uv_running" text-anchor="start" class="small">UV-C · ${esc(operating('uv_running'))}</text><text x="1044" y="447" data-info="uv_hours" class="small">${val('uv_hours','2,5 h')} tændt i alt</text>
 <circle cx="467" cy="391" r="4" fill="#287785"/><path class="leader" d="M474 391H670"/><text x="670" y="415" text-anchor="end" class="small">OVERFLADE</text><text x="670" y="446" data-info="temp_surface" text-anchor="end" class="value">${val('temp_surface','23,1 °C')}</text>
 <circle cx="469" cy="${527+depth}" r="4" fill="#287785"/><text x="500" y="${530+depth}" class="small">BUND</text><text x="559" y="${532+depth}" data-info="temp_bottom" font-size="20" font-weight="600">${val('temp_bottom','23,1 °C')}</text>

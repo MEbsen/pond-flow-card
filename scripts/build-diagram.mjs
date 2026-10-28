@@ -80,6 +80,7 @@ svg=svg.replace('<text x="1094" y="405" text-anchor="end"', '<text x="1044" y="4
  .replace('<text x="1094" y="425" data-info="uv_running" text-anchor="end"', '<text x="1044" y="425" data-info="uv_running" text-anchor="start"');
 svg=svg.replace('UV-C · ${esc(operating(\'uv_running\'))}</text>', 'UV-C · ${esc(operating(\'uv_running\'))}</text><text x="1044" y="447" data-info="uv_hours" class="small">${val(\'uv_hours\',\'2,5 h\')} tændt i alt</text>');
 let card=await readFile('pond-flow-card.js','utf8');
+svg=svg.replace('Retur via vandfald','Retur').replace('<text x="893" y="223" class="small">Fra trykfilter til dam</text>','');
 const from=card.indexOf('<svg '),to=card.indexOf('</svg>',from)+6;
 if(from<0 || to<6) throw Error('Card SVG not found');
 card=card.slice(0,from)+svg+card.slice(to);
