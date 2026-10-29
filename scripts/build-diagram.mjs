@@ -35,14 +35,14 @@ for(const [light,dark] of Object.entries({'#f4f5f0':'var(--ha-card-background,va
 svg=svg.replace('<path d="M249 365H216" class="flow ${demo || this.running(\'skimmer_running\') ? \'active\' : \'\'}" marker-end="url(#arrow)"/>',`<g class="skimmer-current ${'${demo || this.running(\'skimmer_running\') ? \'moving\' : \'\'}'}">
 <g transform="translate(186 365)"><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/></g>
 </g>`);
-svg=svg.replace('IceFree 4 Seasons','Beluftning').replace('Vinterudstyr · 5 W · status ikke tilkoblet','${esc(operating(\'aerator_running\'))}');
+svg=svg.replace('IceFree 4 Seasons','Luftpumpe').replace('Vinterudstyr · 5 W · status ikke tilkoblet','${esc(operating(\'aerator_running\'))}');
 svg=svg.replace('x="560" y="220"','x="560" y="220" data-info="aerator_running"');
-svg=svg.replace('<!-- Isfriholder: kendt udstyr, ingen opdigtet elektrisk status. -->','<!-- Beluftning uses the controller luftpumpe entities. -->');
-svg=svg.replace('<g opacity=".68"><ellipse',`<g data-info="aerator_running" aria-label="Beluftning, vis status"><g class="fountain ${'${demo || this.running(\'aerator_running\') ? \'running\' : \'\'}'}">
+svg=svg.replace('<!-- Isfriholder: kendt udstyr, ingen opdigtet elektrisk status. -->','<!-- Luftpumpe uses the controller luftpumpe entities. -->');
+svg=svg.replace('<g opacity=".68"><ellipse',`<g data-info="aerator_running" aria-label="Luftpumpe, vis status"><g class="fountain ${'${demo || this.running(\'aerator_running\') ? \'running\' : \'\'}'}">
 <path d="M560 351Q538 279 516 353"/><path d="M560 351Q582 279 604 353"/><path d="M560 351Q549 290 536 354"/><path d="M560 351Q571 290 584 354"/>
 <ellipse class="ripple" cx="560" cy="364" rx="46" ry="8"/>
 </g><ellipse`);
-svg=svg.replace('Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald','Snit gennem dammen med fisk, skimmer, beluftning med springvand, filterpumpe, trykfilter med UV-C og vandfald');
+svg=svg.replace('Snit gennem dammen med fisk, skimmer, filterpumpe, trykfilter med UV-C og vandfald','Snit gennem dammen med fisk, skimmer, luftpumpe med springvand, filterpumpe, trykfilter med UV-C og vandfald');
 // Side elevation: horizontal spillway lips, then visibly free falling water.
 svg=svg.replaceAll('M1026 365H1060V251H846','M1026 365H1060V246H884V256H874').replace('M993 251H949','M993 246H949');
 const waterfallStart=svg.indexOf('<path d="M846 269');

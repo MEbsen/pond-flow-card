@@ -169,7 +169,7 @@ class PondFlowCard extends HTMLElement {
     const depth = this.pondDepth();
     const active = demo || this.running('pump_running');
     const val = (key, sample) => esc(demo ? sample : this.value(key));
-    const controls = [['season','Sæson'],['pump_mode','Filterpumpe'],['uv_mode','UV-C'],['aerator_mode','Beluftning'],['skimmer_mode','Skimmer'],['skimmer_plan','Skimmerplan']].filter(([key]) => demo || this.state(key));
+    const controls = [['season','Sæson'],['pump_mode','Filterpumpe'],['uv_mode','UV-C'],['aerator_mode','Luftpumpe'],['skimmer_mode','Skimmer'],['skimmer_plan','Skimmerplan']].filter(([key]) => demo || this.state(key));
     const operating = key => demo ? 'Kører' : !this.state(key) || ['unknown','unavailable'].includes(this.state(key).state) ? 'Ukendt' : this.running(key) ? 'Kører' : 'Stoppet';
     const template = document.createElement('template');
     template.innerHTML = `
@@ -193,7 +193,7 @@ class PondFlowCard extends HTMLElement {
     <ha-card>
       <header data-section="header"><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="badge">${demo ? 'DEMO · eksempeldata' : val('status','')}</span></header>
       <div class="metrics" data-section="metrics"><div class="metric"><small>OVERFLADE</small><strong>${val('temp_surface','23,1 °C')}</strong></div><div class="metric"><small>BUND</small><strong>${val('temp_bottom','23,1 °C')}</strong></div><div class="metric"><small>VANDSTAND</small><strong>${val('water_level','48 cm')}</strong></div></div>
-<svg data-section="diagram" class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, beluftning med springvand, filterpumpe, trykfilter med UV-C og vandfald" xmlns="http://www.w3.org/2000/svg" viewBox="0 175 1200 ${455+depth}">
+<svg data-section="diagram" class="pond-diagram" role="img" aria-label="Snit gennem dammen med fisk, skimmer, luftpumpe med springvand, filterpumpe, trykfilter med UV-C og vandfald" xmlns="http://www.w3.org/2000/svg" viewBox="0 175 1200 ${455+depth}">
 <defs>
  <pattern id="earth" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M0 22L22 0" stroke="#4a514c" stroke-width=".6"/></pattern>
  <linearGradient id="water" x2="0" y2="1"><stop stop-color="#21444e"/><stop offset="1" stop-color="#183640"/></linearGradient>
@@ -256,15 +256,15 @@ class PondFlowCard extends HTMLElement {
 <g transform="translate(186 365)"><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/><ellipse class="intake-ring" cx="95" cy="8" rx="95" ry="7"/></g>
 </g>
 
-<!-- Beluftning uses the controller luftpumpe entities. -->
-<g data-info="aerator_running" aria-label="Beluftning, vis status"><g class="fountain ${demo || this.running('aerator_running') ? 'running' : ''}">
+<!-- Luftpumpe uses the controller luftpumpe entities. -->
+<g data-info="aerator_running" aria-label="Luftpumpe, vis status"><g class="fountain ${demo || this.running('aerator_running') ? 'running' : ''}">
 <path d="M560 351Q538 279 516 353"/><path d="M560 351Q582 279 604 353"/><path d="M560 351Q549 290 536 354"/><path d="M560 351Q571 290 584 354"/>
 <ellipse class="ripple" cx="560" cy="364" rx="46" ry="8"/>
 </g><ellipse cx="560" cy="361" rx="32" ry="7" fill="#ecefe9" stroke="#697e80"/><rect x="547" y="349" width="26" height="9" rx="3" fill="#8d9f9c"/><path d="M560 370V412" stroke="#789aa1" stroke-dasharray="3 5"/></g>
 
 <!-- Etiketter og målepunkter uden krydsende linjer. -->
 <path class="leader" d="M186 347V243H128"/><text x="68" y="218" class="label">Skimmer</text><text x="68" y="238" data-info="skimmer_running" class="small">Overfladerens · ${esc(operating('skimmer_running'))}</text>
-<path class="leader" d="M560 345V235"/><text x="560" y="199" text-anchor="middle" class="label">Beluftning</text><text x="560" y="220" data-info="aerator_running" text-anchor="middle" class="small">${esc(operating('aerator_running'))}</text>
+<path class="leader" d="M560 345V235"/><text x="560" y="199" text-anchor="middle" class="label">Luftpumpe</text><text x="560" y="220" data-info="aerator_running" text-anchor="middle" class="small">${esc(operating('aerator_running'))}</text>
 <text x="893" y="202" class="label">Retur</text>
 <path class="leader" d="M1029 433H1094"/><text x="1044" y="405" text-anchor="start" class="label">Trykfilter</text><text x="1044" y="425" data-info="uv_running" text-anchor="start" class="small">UV-C · ${esc(operating('uv_running'))}</text><text x="1044" y="447" data-info="uv_hours" class="small">${val('uv_hours','2,5 h')} tændt i alt</text>
 <g class="temperature-status" data-info="temp_surface" transform="translate(475 400)"><use href="#temperature-icon" x="0" y="-16"/><text x="23" y="0"><tspan class="small">OVERFLADE</tspan><tspan dx="6" class="temperature-reading">${val('temp_surface','23,1 °C')}</tspan></text></g>
@@ -273,7 +273,7 @@ class PondFlowCard extends HTMLElement {
 <path class="leader" d="M343 ${535+depth}V${568+depth}"/><text x="343" y="${584+depth}" text-anchor="middle" class="label">Filterpumpe</text><text x="343" y="${601+depth}" data-info="pump_running" text-anchor="middle" class="small">${esc(operating('pump_running'))}</text>
 
 </svg>
-      <div class="equipment" data-section="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Beluftning','aerator_hours'],['skimmer_running','Skimmer','skimmer_hours']].map(([key,label,hours]) => `<button data-info="${key}"><strong>${label}</strong><small>${esc(operating(key))} · ${val(hours,'2,5 h')} i alt</small></button>`).join('')}</div>
+      <div class="equipment" data-section="equipment">${[['pump_running','Filterpumpe','pump_hours'],['uv_running','UV-C','uv_hours'],['aerator_running','Luftpumpe','aerator_hours'],['skimmer_running','Skimmer','skimmer_hours']].map(([key,label,hours]) => `<button data-info="${key}"><strong>${label}</strong><small>${esc(operating(key))} · ${val(hours,'2,5 h')} i alt</small></button>`).join('')}</div>
       ${[...binaryKeys].some(key => this.state(key) && this.state(key).state !== 'off') ? `<div class="equipment alarms" data-section="alarms" role="status">${[...binaryKeys].filter(key => this.state(key) && this.state(key).state !== 'off').map(key => `<button data-info="${key}" class="error"><strong>${esc(labels[key])}</strong><small>${['unknown','unavailable'].includes(this.state(key).state) ? 'Status utilgængelig' : 'Aktiv'}</small></button>`).join('')}</div>` : ''}
       <div class="controls" data-section="controls">${controls.map(([key,label]) => {
         const state = this.state(key);
