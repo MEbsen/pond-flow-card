@@ -130,7 +130,7 @@ class PondFlowCard extends HTMLElement {
     if (!this.config) return;
     const prefix = this.config.entity_prefix || 'garden_pond_controller';
     const visible = state => state && [state.state,state.attributes];
-    const signature = JSON.stringify([Object.keys({...labels,...this.config.entities}).map(key => visible(this.state(key))),Object.entries(hass.states).filter(([id]) => id.startsWith(`number.${prefix}_`) || id.startsWith(`switch.${prefix}_`)).map(([id,state])=>[id,visible(state)])]);
+    const signature = JSON.stringify([Object.keys({...labels,...this.config.entities}).map(key => visible(this.state(key))),Object.entries(hass.states).filter(([id]) => ['number','switch','text','select'].some(domain => id.startsWith(`${domain}.${prefix}_`))).map(([id,state])=>[id,visible(state)])]);
     if (signature !== this.signature) { this.signature = signature; this.render(); }
   }
   getCardSize() { return Math.ceil((this.getBoundingClientRect().height || 650) / 50); }
@@ -143,7 +143,10 @@ class PondFlowCard extends HTMLElement {
     const domain = key.endsWith('_mode') || key === 'season' || key === 'skimmer_plan' ? 'select' : key.endsWith('_running') || binaryKeys.has(key) ? 'binary_sensor' : 'sensor';
     const expected = `${domain}.${prefix}_${slug(labels[key])}`;
     if (this._hass?.states[expected]) return expected;
-    const matches = Object.entries(this._hass?.states || {}).filter(([id,s]) => id.startsWith(`${domain}.${prefix}_`) && (slug(s.attributes?.friendly_name || '') === slug(labels[key]) || slug(s.attributes?.friendly_name || '').endsWith('_'+slug(labels[key]))));
+    // Keep older controllers working while accepting the v2 schedule selector.
+    const names = key === 'skimmer_plan' ? [labels[key], 'Skimmer tidsplan - type'] : [labels[key]];
+    const candidates = names.map(name => slug(name));
+    const matches = Object.entries(this._hass?.states || {}).filter(([id,s]) => id.startsWith(`${domain}.${prefix}_`) && candidates.some(name => id === `${domain}.${prefix}_${name}` || slug(s.attributes?.friendly_name || '') === name || slug(s.attributes?.friendly_name || '').endsWith('_'+name)));
     return matches.length === 1 ? matches[0][0] : explicit || expected;
   }
   state(key) { return this._hass?.states[this.entity(key)]; }
@@ -281,7 +284,7 @@ class PondFlowCard extends HTMLElement {
         const disabled = demo || !state || ['unavailable','unknown'].includes(state.state);
         return `<div class="control"><strong>${label}</strong><div class="options">${!state && !demo ? '<small>Ikke tilkoblet</small>' : options.map(option => `<button data-key="${key}" data-option="${esc(option)}" aria-label="${label}: ${esc(option)}" aria-pressed="${option === state?.state}" ${disabled ? 'disabled' : ''}>${esc(option)}</button>`).join('')}</div></div>`;
       }).join('')}</div>
-      <details data-section="settings"><summary>Indstillinger og skimmerens ugeplan</summary><div class="equipment">${Object.entries(this._hass?.states || {}).filter(([id]) => ['number','switch'].some(domain => id.startsWith(`${domain}.${this.config.entity_prefix || 'garden_pond_controller'}_`))).map(([id,s]) => `<button data-entity="${esc(id)}"><strong>${esc(s.attributes.friendly_name || id)}</strong><small>${esc(s.state)} ${esc(s.attributes.unit_of_measurement || '')}</small></button>`).join('')}</div><span class="note">Tryk for at åbne og ændre indstillingen i Home Assistant.</span></details>
+      <details data-section="settings"><summary>Indstillinger og tidsplaner</summary><div class="equipment">${Object.entries(this._hass?.states || {}).filter(([id]) => ['number','switch','text','select'].some(domain => id.startsWith(`${domain}.${this.config.entity_prefix || 'garden_pond_controller'}_`))).map(([id,s]) => `<button data-entity="${esc(id)}"><strong>${esc(s.attributes.friendly_name || id)}</strong><small>${esc(s.state)} ${esc(s.attributes.unit_of_measurement || '')}</small></button>`).join('')}</div><span class="note">Tryk for at åbne og ændre indstillingen i Home Assistant.</span></details>
       <details data-section="entities"><summary>Entiteter og forbindelser</summary>${Object.keys(labels).map(key => `<div>${esc(labels[key])}: ${this.state(key) ? '✓' : 'Mangler'} <code>${esc(this.entity(key))}</code></div>`).join('')}</details>
       <div class="status" data-section="status">Seneste hændelse: ${val('last_event','Filterpumpe startet automatisk')}<br><span class="note">${demo ? 'Demo betjener ikke dit udstyr.' : 'Tryk på en måling eller udstyrsstatus for detaljer. Relæstatus bekræfter ikke fysisk drift.'}</span>${this.error ? `<div class="error" role="alert">${esc(this.error)}</div>` : ''}</div>
     </ha-card>`;

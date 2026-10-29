@@ -1,0 +1,1572 @@
+# Relæer: 1 filterpumpe, 2 skimmer, 3 luftpumpe, 4 UV-C.
+esphome:
+  name: pond-controller
+  friendly_name: Pond Controller
+  area: Garden
+  on_boot:
+    # Efter I2C er klar: alle relæer FRA ved opstart
+    - priority: 600
+      then:
+        - lambda: |-
+            id(m5_relay_board).write_byte(0x10, 0x01);  // Sync-mode: LED følger relæ
+            id(relay_fault) = !id(m5_relay_board).write_byte(0x11, 0x00);  // Alle relæer fra
+            id(relay_mask) = 0;
+    - priority: -100
+      then:
+        - script.execute:
+            id: log_event
+            msg: "Controller startet"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: ESP32S3
+  flash_size: 8MB
+  framework:
+    type: arduino
+
+logger:
+
+# Gem restore-værdier sjældnere for at skåne flash
+preferences:
+  flash_write_interval: 5min
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  # VIGTIGT: standard er 15 min -> ESP genstarter hvis HA ikke er forbundet.
+  # 0s = kører videre for altid uden HA.
+  reboot_timeout: 0s
+  on_client_connected:
+    - lambda: |-
+        id(log_event).execute("API forbundet: " + client_info);
+  on_client_disconnected:
+    - lambda: |-
+        id(log_event).execute("API afbrudt: " + client_info);
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  reboot_timeout: 0s   # Genstart ALDRIG pga. manglende WiFi
+  ap:
+    ssid: Pond Controller Fallback Hotspot
+    password: !secret fallback_ap_password
+  on_connect:
+    - script.execute:
+        id: log_event
+        msg: "WiFi forbundet"
+  on_disconnect:
+    - script.execute:
+        id: log_event
+        msg: "WiFi tabt – kører lokalt"
+
+captive_portal:
+
+web_server:
+  version: 3
+  local: true
+  sorting_groups:
+    - id: group_pump
+      name: "Filterpumpe"
+      sorting_weight: 10
+    - id: group_skimmer
+      name: "Skimmer"
+      sorting_weight: 20
+    - id: group_aer
+      name: "Luftpumpe"
+      sorting_weight: 30
+    - id: group_uv
+      name: "UV-C"
+      sorting_weight: 40
+
+time:
+  - platform: sntp
+    id: pond_time
+    timezone: Europe/Copenhagen
+    servers: [0.dk.pool.ntp.org, 1.dk.pool.ntp.org, pool.ntp.org]
+  - platform: homeassistant
+    id: ha_time
+    timezone: Europe/Copenhagen
+
+i2c:
+  - sda: GPIO38
+    scl: GPIO39
+    scan: true
+    id: bus_port_a
+    frequency: 100kHz
+
+i2c_device:
+  - id: m5_relay_board
+    address: 0x26
+    i2c_id: bus_port_a
+
+one_wire:
+  - platform: gpio
+    pin:
+      number: GPIO7
+      mode:
+        input: true
+        output: true
+        open_drain: true
+    id: dallas_bus
+
+uart:
+  - id: uart_port_c
+    baud_rate: 9600
+    rx_pin: GPIO6
+    tx_pin: GPIO5
+
+globals:
+  - id: relay_mask
+    type: uint32_t
+    initial_value: '0'
+  - id: level_last_update
+    type: uint32_t
+    initial_value: '0'
+  - id: bottom_last_update
+    type: uint32_t
+    initial_value: '0'
+  - id: surface_last_update
+    type: uint32_t
+    initial_value: '0'
+  - id: temperature_winter
+    type: bool
+    initial_value: 'true'
+    restore_value: true
+  - id: low_water
+    type: bool
+    initial_value: 'false'
+  - id: level_fault
+    type: bool
+    initial_value: 'false'
+  - id: temp_fault
+    type: bool
+    initial_value: 'false'
+  - id: relay_fault
+    type: bool
+    initial_value: 'false'
+  - id: clock_fault
+    type: bool
+    initial_value: 'false'
+  - id: config_fault
+    type: bool
+    initial_value: 'false'
+  - id: skimmer_blocked
+    type: bool
+    initial_value: 'false'
+  - id: uv_due
+    type: bool
+    initial_value: 'false'
+  - id: event_log
+    type: std::string
+    initial_value: '""'
+  - id: pump_s_total
+    type: double
+    initial_value: '0'
+    restore_value: true
+  - id: skimmer_s_total
+    type: double
+    initial_value: '0'
+    restore_value: true
+  - id: aer_s_total
+    type: double
+    initial_value: '0'
+    restore_value: true
+  - id: uv_s_total
+    type: double
+    initial_value: '0'
+    restore_value: true
+  - id: pump_phase_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: pump_phase_started
+    type: bool
+    initial_value: 'false'
+  - id: pump_reset_phase
+    type: bool
+    initial_value: 'false'
+  - id: skimmer_phase_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: skimmer_phase_started
+    type: bool
+    initial_value: 'false'
+  - id: skimmer_reset_phase
+    type: bool
+    initial_value: 'false'
+  - id: aer_phase_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: aer_phase_started
+    type: bool
+    initial_value: 'false'
+  - id: aer_reset_phase
+    type: bool
+    initial_value: 'false'
+  - id: uv_phase_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: uv_phase_started
+    type: bool
+    initial_value: 'false'
+  - id: uv_reset_phase
+    type: bool
+    initial_value: 'false'
+  - id: skimmer_level_blocked
+    type: bool
+    initial_value: 'true'
+script:
+  - id: log_event
+    mode: queued
+    parameters:
+      msg: string
+    then:
+      - lambda: |-
+          auto t = id(pond_time).now();
+          std::string stamp = t.is_valid() ? t.strftime("%d/%m %H:%M") : "+" + std::to_string(millis()/1000) + "s";
+          std::string line = stamp + " " + msg;
+          ESP_LOGI("pond", "%s", line.c_str());
+          id(last_event).publish_state(line);
+          std::string log = id(event_log).empty() ? line : line + " | " + id(event_log);
+          if (log.size() > 250) {
+            size_t pos = log.rfind(" | ", 250);
+            log = log.substr(0, pos == std::string::npos ? 250 : pos);
+          }
+          id(event_log) = log;
+          id(event_log_sensor).publish_state(log);
+interval:
+  - interval: 5s
+    startup_delay: 15s
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          static uint32_t last_ms = now;
+          const float dt = (now-last_ms)/1000.0f;
+          last_ms = now;
+          // Timer er baseret paa sidst bekraeftede relaekommando, ikke fysisk flow.
+          if (id(relay_mask)&1) id(pump_s_total) += dt;
+          if (id(relay_mask)&2) id(skimmer_s_total) += dt;
+          if (id(relay_mask)&4) id(aer_s_total) += dt;
+          if (id(relay_mask)&8) id(uv_s_total) += dt;
+          auto mode = [](select::Select *s) -> int {
+            auto i = s->active_index();
+            return i.has_value() ? (int)i.value() : 0;
+          };
+          auto alarm = [](bool &state, bool active, const char *on, const char *off) {
+            if (state != active) {state = active; id(log_event).execute(active ? on : off);}
+          };
+          const float tb = id(temp_bottom).state;
+          const float ts = id(temp_surface).state;
+          const float dist = id(level_distance).state;
+          const bool level_ok = std::isfinite(dist) && now-id(level_last_update)<60000;
+          const bool tb_ok = std::isfinite(tb) && now-id(bottom_last_update)<60000;
+          const bool ts_ok = std::isfinite(ts) && now-id(surface_last_update)<60000;
+          const float level = id(sensor_height).state-dist;
+          const bool pump_config = id(bottom_restart).state>=id(bottom_stop).state && id(surface_restart).state>id(surface_stop).state;
+          const bool skim_config = id(skimmer_max).state>id(skimmer_min).state &&
+            2*id(skimmer_margin).state<id(skimmer_max).state-id(skimmer_min).state;
+          alarm(id(level_fault), !level_ok, "FEJL: niveausensor", "Niveausensor OK");
+          alarm(id(temp_fault), !tb_ok || !ts_ok, "FEJL: temperatursensor", "Temperatursensorer OK");
+          // En samlet temperaturtilstand: begge genstartkrav skal vaere
+          // opfyldt samtidig. Vandstand aendrer ikke sommer/vintertilstanden.
+          if (tb_ok && ts_ok && pump_config) {
+            if (tb<id(bottom_stop).state || ts<=id(surface_stop).state)
+              id(temperature_winter)=true;
+            else if (tb>id(bottom_restart).state && ts>id(surface_restart).state)
+              id(temperature_winter)=false;
+          }
+          // Ingen genstartmargin for filterpumpens minimumsvandstand.
+          // Ved graensen eller under holdes pumpen slukket.
+          if (level_ok) id(low_water)=level<=id(critical_level).state;
+          const bool winter = id(temperature_winter);
+          const bool safe = level_ok && tb_ok && ts_ok && pump_config && !winter && !id(low_water);
+          const int pm = mode(id(pump_mode));
+          const int sm = mode(id(skimmer_mode));
+          const int am = mode(id(aerator_mode));
+          const int um = mode(id(uv_mode));
+          if (level_ok && skim_config) {
+            if (level<id(skimmer_min).state || level>id(skimmer_max).state)
+              id(skimmer_level_blocked)=true;
+            else if (level>=id(skimmer_min).state+id(skimmer_margin).state &&
+                     level<=id(skimmer_max).state-id(skimmer_margin).state)
+              id(skimmer_level_blocked)=false;
+          }
+          const bool skim_safe = level_ok && ts_ok && skim_config &&
+            !id(skimmer_level_blocked) && ts>=id(skimmer_temp).state;
+          auto t=id(pond_time).now();
+          bool schedule_config_fault=false;
+          bool schedule_clock_fault=false;
+          // Same schedule engine for all four outputs. Safety is applied afterwards.
+          auto evaluate_plan = [&](int plan, bool needed, float run_minutes, float every_hours,
+              float every_minutes, uint8_t days, bool en1, const std::string &start1,
+              bool en2, const std::string &start2, bool en3, const std::string &start3,
+              uint32_t &phase, bool &started, bool &reset, std::string &summary) -> bool {
+            if(reset) {started=false; reset=false;}
+            if(plan==0) {started=false; summary="Uden tidsplan"; return true;}
+            const uint32_t duration=(uint32_t)(run_minutes*60.0f);
+            if(plan==1) {
+              const uint32_t period=(uint32_t)(every_hours*3600.0f+every_minutes*60.0f);
+              if(period==0 || duration>period) {
+                if(needed) schedule_config_fault=true;
+                summary="FEJL: interval skal vaere mindst koeretiden og over 0";
+                return false;
+              }
+              if(!started) {phase=now; started=true;}
+              const uint32_t period_ms=period*1000;
+              const uint32_t elapsed=now-phase;
+              if(elapsed>=period_ms) phase+=(elapsed/period_ms)*period_ms;
+              char buf[100];
+              snprintf(buf,sizeof(buf),"%.0f min hver %.0f t %.0f min",run_minutes,every_hours,every_minutes);
+              summary=buf;
+              return now-phase<duration*1000;
+            }
+            started=false;
+            auto parse_time = [](const std::string &value) -> int {
+              if(value.size()!=5 || value[2]!=':') return -1;
+              for(int i : {0,1,3,4}) if(value[i]<'0' || value[i]>'9') return -1;
+              const int hour=(value[0]-'0')*10+value[1]-'0';
+              const int minute=(value[3]-'0')*10+value[4]-'0';
+              return hour<24 && minute<60 ? hour*3600+minute*60 : -1;
+            };
+            const bool enabled[3]={en1,en2,en3};
+            const std::string starts[3]={start1,start2,start3};
+            int seconds[3]={0,0,0};
+            summary="Ugeplan";
+            for(int i=0;i<3;i++) if(enabled[i]) {
+              seconds[i]=parse_time(starts[i]);
+              if(seconds[i]<0) {
+                if(needed) schedule_config_fault=true;
+                summary="FEJL: skriv starttid som HH:MM (00:00-23:59)";
+                return false;
+              }
+              summary+=" "+starts[i];
+            }
+            if(days==0 || !(en1||en2||en3)) {summary="Ugeplan: ingen aktive starter/dage"; return false;}
+            if(!t.is_valid()) {
+              if(needed) schedule_clock_fault=true;
+              summary="Ugeplan afventer klokkeslaet";
+              return false;
+            }
+            const int second=t.hour*3600+t.minute*60+t.second;
+            const int today=t.day_of_week-1; // Sunday=0.
+            for(int i=0;i<3;i++) if(enabled[i]) {
+              const int age=second-seconds[i];
+              // Independently check today and yesterday, also for 24-hour windows.
+              if((days&(1<<today)) && age>=0 && age<(int)duration) return true;
+              if((days&(1<<((today+6)%7))) && age+86400>=0 && age+86400<(int)duration) return true;
+            }
+            return false;
+          };
+          std::string pump_summary;
+          const uint8_t pump_days=(id(pump_day_sun).state ? 1 : 0) | (id(pump_day_mon).state ? 2 : 0) | (id(pump_day_tue).state ? 4 : 0) | (id(pump_day_wed).state ? 8 : 0) | (id(pump_day_thu).state ? 16 : 0) | (id(pump_day_fri).state ? 32 : 0) | (id(pump_day_sat).state ? 64 : 0);
+          const bool pump_scheduled=evaluate_plan(mode(id(pump_schedule)), pm==0,
+            id(pump_run_minutes).state,id(pump_every_hours).state,id(pump_every_minutes).state,pump_days,
+            id(pump_slot1_enabled).state,id(pump_start1).state,
+            id(pump_slot2_enabled).state,id(pump_start2).state,
+            id(pump_slot3_enabled).state,id(pump_start3).state,
+            id(pump_phase_ms),id(pump_phase_started),id(pump_reset_phase),pump_summary);
+          if(id(pump_plan_summary).state!=pump_summary) id(pump_plan_summary).publish_state(pump_summary);
+          std::string skimmer_summary;
+          const uint8_t skimmer_days=(id(skimmer_day_sun).state ? 1 : 0) | (id(skimmer_day_mon).state ? 2 : 0) | (id(skimmer_day_tue).state ? 4 : 0) | (id(skimmer_day_wed).state ? 8 : 0) | (id(skimmer_day_thu).state ? 16 : 0) | (id(skimmer_day_fri).state ? 32 : 0) | (id(skimmer_day_sat).state ? 64 : 0);
+          const bool skimmer_scheduled=evaluate_plan(mode(id(skimmer_schedule)), sm==0,
+            id(skimmer_run_minutes).state,id(skimmer_every_hours).state,id(skimmer_every_minutes).state,skimmer_days,
+            id(skimmer_slot1_enabled).state,id(skimmer_start1).state,
+            id(skimmer_slot2_enabled).state,id(skimmer_start2).state,
+            id(skimmer_slot3_enabled).state,id(skimmer_start3).state,
+            id(skimmer_phase_ms),id(skimmer_phase_started),id(skimmer_reset_phase),skimmer_summary);
+          if(id(skimmer_plan_summary).state!=skimmer_summary) id(skimmer_plan_summary).publish_state(skimmer_summary);
+          std::string aer_summary;
+          const uint8_t aer_days=(id(aer_day_sun).state ? 1 : 0) | (id(aer_day_mon).state ? 2 : 0) | (id(aer_day_tue).state ? 4 : 0) | (id(aer_day_wed).state ? 8 : 0) | (id(aer_day_thu).state ? 16 : 0) | (id(aer_day_fri).state ? 32 : 0) | (id(aer_day_sat).state ? 64 : 0);
+          const bool aer_scheduled=evaluate_plan(mode(id(aer_schedule)), am==0 && !winter,
+            id(aer_run_minutes).state,id(aer_every_hours).state,id(aer_every_minutes).state,aer_days,
+            id(aer_slot1_enabled).state,id(aer_start1).state,
+            id(aer_slot2_enabled).state,id(aer_start2).state,
+            id(aer_slot3_enabled).state,id(aer_start3).state,
+            id(aer_phase_ms),id(aer_phase_started),id(aer_reset_phase),aer_summary);
+          if(id(aer_plan_summary).state!=aer_summary) id(aer_plan_summary).publish_state(aer_summary);
+          std::string uv_summary;
+          const uint8_t uv_days=(id(uv_day_sun).state ? 1 : 0) | (id(uv_day_mon).state ? 2 : 0) | (id(uv_day_tue).state ? 4 : 0) | (id(uv_day_wed).state ? 8 : 0) | (id(uv_day_thu).state ? 16 : 0) | (id(uv_day_fri).state ? 32 : 0) | (id(uv_day_sat).state ? 64 : 0);
+          const bool uv_scheduled=evaluate_plan(mode(id(uv_schedule)), um==0,
+            id(uv_run_minutes).state,id(uv_every_hours).state,id(uv_every_minutes).state,uv_days,
+            id(uv_slot1_enabled).state,id(uv_start1).state,
+            id(uv_slot2_enabled).state,id(uv_start2).state,
+            id(uv_slot3_enabled).state,id(uv_start3).state,
+            id(uv_phase_ms),id(uv_phase_started),id(uv_reset_phase),uv_summary);
+          if(id(uv_plan_summary).state!=uv_summary) id(uv_plan_summary).publish_state(uv_summary);
+          alarm(id(config_fault), !pump_config || !skim_config || schedule_config_fault,
+            "FEJL: indstillinger eller tidsplan", "Indstillinger OK");
+          alarm(id(clock_fault), schedule_clock_fault, "FEJL: ugeplan mangler tid", "Ur OK eller ikke paakraevet");
+          const bool pump=safe && (pm==1 || (pm==0 && pump_scheduled));
+          const bool uv=pump && (um==1 || (um==0 && uv_scheduled));
+          const bool aer=am==1 || (am==0 && (winter || aer_scheduled));
+          const bool requested=sm==1 || (sm==0 && skimmer_scheduled);
+          const bool skim=requested && skim_safe;
+          id(skimmer_blocked)=requested && !skim_safe;
+          const uint8_t mask=(pump?1:0)|(skim?2:0)|(aer?4:0)|(uv?8:0);
+          static uint8_t resend=0;
+          if (mask!=id(relay_mask) || ++resend>=12 || id(relay_fault)) {
+            resend=0;
+            id(m5_relay_board).write_byte(0x10,0x01);
+            const bool ok=id(m5_relay_board).write_byte(0x11,mask);
+            alarm(id(relay_fault),!ok,"FEJL: relaemodul","Relaemodul OK");
+            if (ok) {
+              const uint8_t changed=mask^id(relay_mask);
+              static const char *names[4]={"Filterpumpe","Skimmer","Luftpumpe","UV-C"};
+              for(int i=0;i<4;i++) if(changed&(1<<i)) id(log_event).execute(std::string(names[i])+((mask&(1<<i))?" TIL":" FRA"));
+              id(relay_mask)=mask;
+            }
+          }
+          alarm(id(uv_due),id(uv_s_total)/3600.0>=id(uv_service_hours).state,"SERVICE: UV-paere","UV-servicealarm ophoert");
+          std::string status;
+          if(id(relay_fault)) status="Fejl: relaemodul";
+          else if(id(config_fault)) status="Fejl: indstillinger";
+          else if(!level_ok) status="Fejl: niveau; filter/UV/skimmer stoppet";
+          else if(!tb_ok || !ts_ok) status="Fejl: temperatur; filter/UV stoppet";
+          else if(id(low_water)) status="Lav vandstand; filter/UV stoppet";
+          else if(winter) status="Vinterdrift (temperatur)";
+          else if(id(clock_fault)) status="Ugeplan venter paa tid";
+          else if(pm==2) status="Filterpumpe manuelt stoppet";
+          else if(!pump) status="Sommerdrift; filter afventer tidsplan";
+          else status="Sommerdrift (temperatur)";
+          if(id(pond_status).state!=status) id(pond_status).publish_state(status);
+sensor:
+  - platform: a02yyuw
+    uart_id: uart_port_c
+    id: level_distance
+    name: "Vandstand afstand"
+    unit_of_measurement: "cm"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+      - lambda: |-
+          if (!std::isfinite(x) || x<3.0 || x>450.0) return {};
+          return x;
+      - median:
+          window_size: 9
+          send_every: 9
+          send_first_at: 9
+      - throttle_average: 10s
+    on_value:
+      - lambda: id(level_last_update)=millis();
+  - platform: template
+    name: "Vandstand"
+    unit_of_measurement: "cm"
+    accuracy_decimals: 1
+    update_interval: 10s
+    lambda: |-
+      if (!std::isfinite(id(level_distance).state) || millis()-id(level_last_update)>=60000) return NAN;
+      return id(sensor_height).state-id(level_distance).state;
+  - platform: dallas_temp
+    one_wire_id: dallas_bus
+    id: temp_bottom
+    index: 0
+    name: "Dam temperatur bund"
+    update_interval: 10s
+    on_value:
+      - lambda: if (std::isfinite(x)) id(bottom_last_update)=millis();
+  - platform: dallas_temp
+    one_wire_id: dallas_bus
+    id: temp_surface
+    index: 1
+    name: "Dam temperatur overflade"
+    update_interval: 10s
+    on_value:
+      - lambda: if (std::isfinite(x)) id(surface_last_update)=millis();
+  - platform: template
+    name: "Filterpumpe drift total"
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 2
+    update_interval: 30s
+    lambda: return id(pump_s_total)/3600.0;
+  - platform: template
+    name: "Skimmer drift total"
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 2
+    update_interval: 30s
+    lambda: return id(skimmer_s_total)/3600.0;
+  - platform: template
+    name: "Luftpumpe drift total"
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 2
+    update_interval: 30s
+    lambda: return id(aer_s_total)/3600.0;
+  - platform: template
+    name: "UV-C drift total"
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 2
+    update_interval: 30s
+    lambda: return id(uv_s_total)/3600.0;
+  - platform: wifi_signal
+    name: "WiFi signal"
+    update_interval: 60s
+    entity_category: diagnostic
+  - platform: uptime
+    name: "Oppetid"
+    entity_category: diagnostic
+binary_sensor:
+  - platform: template
+    name: "Filterpumpe koerer"
+    lambda: return (id(relay_mask)&1)!=0;
+  - platform: template
+    name: "Skimmer koerer"
+    lambda: return (id(relay_mask)&2)!=0;
+  - platform: template
+    name: "Luftpumpe koerer"
+    lambda: return (id(relay_mask)&4)!=0;
+  - platform: template
+    name: "UV-C taendt"
+    lambda: return (id(relay_mask)&8)!=0;
+  - platform: template
+    name: "Vinterdrift aktiv"
+    lambda: return id(temperature_winter);
+  - platform: template
+    name: "Alarm lav vandstand"
+    lambda: return id(low_water);
+  - platform: template
+    name: "Skimmer sikkerhedsspaerret"
+    lambda: return id(skimmer_blocked);
+  - platform: template
+    name: "Fejl niveausensor"
+    lambda: return id(level_fault);
+  - platform: template
+    name: "Fejl temperatursensor"
+    lambda: return id(temp_fault);
+  - platform: template
+    name: "Fejl relaemodul"
+    lambda: return id(relay_fault);
+  - platform: template
+    name: "Fejl ugeplan ur"
+    lambda: return id(clock_fault);
+  - platform: template
+    name: "Fejl indstillinger"
+    lambda: return id(config_fault);
+  - platform: template
+    name: "UV-C service paakraevet"
+    lambda: return id(uv_due);
+text_sensor:
+  - platform: template
+    id: pond_status
+    name: "Dam status"
+    update_interval: never
+  - platform: template
+    id: last_event
+    name: "Seneste haendelse"
+    update_interval: never
+  - platform: template
+    id: event_log_sensor
+    name: "Haendelseslog"
+    update_interval: never
+  - platform: template
+    id: pump_plan_summary
+    name: "Filterpumpe tidsplan oversigt"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 15
+  - platform: template
+    id: skimmer_plan_summary
+    name: "Skimmer tidsplan oversigt"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 15
+  - platform: template
+    id: aer_plan_summary
+    name: "Luftpumpe tidsplan oversigt"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 15
+  - platform: template
+    id: uv_plan_summary
+    name: "UV-C tidsplan oversigt"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 15
+select:
+  - platform: template
+    id: pump_mode
+    name: "Filterpumpe tilstand"
+    optimistic: true
+    restore_value: true
+    options: ["Auto", "Til", "Fra"]
+    initial_option: "Auto"
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 0
+  - platform: template
+    id: skimmer_mode
+    name: "Skimmer tilstand"
+    optimistic: true
+    restore_value: true
+    options: ["Auto", "Til", "Fra"]
+    initial_option: "Auto"
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 0
+  - platform: template
+    id: aerator_mode
+    name: "Luftpumpe tilstand"
+    optimistic: true
+    restore_value: true
+    options: ["Auto", "Til", "Fra"]
+    initial_option: "Auto"
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 0
+  - platform: template
+    id: uv_mode
+    name: "UV-C tilstand"
+    optimistic: true
+    restore_value: true
+    options: ["Auto", "Til", "Fra"]
+    initial_option: "Auto"
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 0
+  - platform: template
+    id: pump_schedule
+    name: "Filterpumpe tidsplan - type"
+    optimistic: true
+    restore_value: true
+    options: ["Uden tidsplan", "Gentag med interval", "Ugeplan"]
+    initial_option: "Uden tidsplan"
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 10
+  - platform: template
+    id: skimmer_schedule
+    name: "Skimmer tidsplan - type"
+    optimistic: true
+    restore_value: true
+    options: ["Uden tidsplan", "Gentag med interval", "Ugeplan"]
+    initial_option: "Gentag med interval"
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 10
+  - platform: template
+    id: aer_schedule
+    name: "Luftpumpe tidsplan - type"
+    optimistic: true
+    restore_value: true
+    options: ["Uden tidsplan", "Gentag med interval", "Ugeplan"]
+    initial_option: "Gentag med interval"
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 10
+  - platform: template
+    id: uv_schedule
+    name: "UV-C tidsplan - type"
+    optimistic: true
+    restore_value: true
+    options: ["Uden tidsplan", "Gentag med interval", "Ugeplan"]
+    initial_option: "Uden tidsplan"
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 10
+number:
+  - platform: template
+    id: sensor_height
+    name: "Sensor hoejde over reference"
+    unit_of_measurement: "cm"
+    min_value: 10
+    max_value: 450
+    step: 0.5
+    initial_value: 120
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: critical_level
+    name: "Filterpumpe stop under vandstand"
+    unit_of_measurement: "cm"
+    min_value: 0
+    max_value: 450
+    step: 0.5
+    initial_value: 75
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: skimmer_min
+    name: "Skimmer minimum vandstand"
+    unit_of_measurement: "cm"
+    min_value: 0
+    max_value: 450
+    step: 0.5
+    initial_value: 90
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: skimmer_max
+    name: "Skimmer maksimum vandstand"
+    unit_of_measurement: "cm"
+    min_value: 0
+    max_value: 450
+    step: 0.5
+    initial_value: 100
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: bottom_stop
+    name: "Vinter bund stop under"
+    unit_of_measurement: "°C"
+    min_value: -5
+    max_value: 25
+    step: 0.5
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: bottom_restart
+    name: "Sommer bund genstart over"
+    unit_of_measurement: "°C"
+    min_value: -5
+    max_value: 30
+    step: 0.5
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: surface_stop
+    name: "Vinter overflade stop ved eller under"
+    unit_of_measurement: "°C"
+    min_value: -5
+    max_value: 25
+    step: 0.5
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: surface_restart
+    name: "Sommer overflade genstart over"
+    unit_of_measurement: "°C"
+    min_value: -5
+    max_value: 30
+    step: 0.5
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: skimmer_temp
+    name: "Skimmer stop under overfladetemperatur"
+    unit_of_measurement: "°C"
+    min_value: -5
+    max_value: 25
+    step: 0.5
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: uv_service_hours
+    name: "UV-C servicegraense"
+    unit_of_measurement: "h"
+    min_value: 1
+    max_value: 30000
+    step: 1
+    initial_value: 8000
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+  - platform: template
+    id: pump_run_minutes
+    name: "Filterpumpe tidsplan - Koeretid pr start"
+    unit_of_measurement: "min"
+    min_value: 1
+    max_value: 1440
+    step: 1
+    initial_value: 15
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 20
+  - platform: template
+    id: pump_every_hours
+    name: "Filterpumpe tidsplan - Gentag hver - timer"
+    unit_of_measurement: "h"
+    min_value: 0
+    max_value: 168
+    step: 1
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 30
+  - platform: template
+    id: pump_every_minutes
+    name: "Filterpumpe tidsplan - Gentag hver - ekstra minutter"
+    unit_of_measurement: "min"
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 31
+  - platform: template
+    id: skimmer_run_minutes
+    name: "Skimmer tidsplan - Koeretid pr start"
+    unit_of_measurement: "min"
+    min_value: 1
+    max_value: 1440
+    step: 1
+    initial_value: 15
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 20
+  - platform: template
+    id: skimmer_every_hours
+    name: "Skimmer tidsplan - Gentag hver - timer"
+    unit_of_measurement: "h"
+    min_value: 0
+    max_value: 168
+    step: 1
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 30
+  - platform: template
+    id: skimmer_every_minutes
+    name: "Skimmer tidsplan - Gentag hver - ekstra minutter"
+    unit_of_measurement: "min"
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 31
+  - platform: template
+    id: aer_run_minutes
+    name: "Luftpumpe tidsplan - Koeretid pr start"
+    unit_of_measurement: "min"
+    min_value: 1
+    max_value: 1440
+    step: 1
+    initial_value: 15
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 20
+  - platform: template
+    id: aer_every_hours
+    name: "Luftpumpe tidsplan - Gentag hver - timer"
+    unit_of_measurement: "h"
+    min_value: 0
+    max_value: 168
+    step: 1
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 30
+  - platform: template
+    id: aer_every_minutes
+    name: "Luftpumpe tidsplan - Gentag hver - ekstra minutter"
+    unit_of_measurement: "min"
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 31
+  - platform: template
+    id: uv_run_minutes
+    name: "UV-C tidsplan - Koeretid pr start"
+    unit_of_measurement: "min"
+    min_value: 1
+    max_value: 1440
+    step: 1
+    initial_value: 15
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 20
+  - platform: template
+    id: uv_every_hours
+    name: "UV-C tidsplan - Gentag hver - timer"
+    unit_of_measurement: "h"
+    min_value: 0
+    max_value: 168
+    step: 1
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 30
+  - platform: template
+    id: uv_every_minutes
+    name: "UV-C tidsplan - Gentag hver - ekstra minutter"
+    unit_of_measurement: "min"
+    min_value: 0
+    max_value: 59
+    step: 1
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 31
+  - platform: template
+    id: skimmer_margin
+    name: "Skimmer genstartmargin inden for vandstandsinterval"
+    unit_of_measurement: "cm"
+    min_value: 0
+    max_value: 30
+    step: 0.5
+    initial_value: 2
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 90
+switch:
+  - platform: template
+    id: pump_slot1_enabled
+    name: "Filterpumpe ugeplan - start 1 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 41
+  - platform: template
+    id: pump_slot2_enabled
+    name: "Filterpumpe ugeplan - start 2 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 43
+  - platform: template
+    id: pump_slot3_enabled
+    name: "Filterpumpe ugeplan - start 3 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 45
+  - platform: template
+    id: pump_day_mon
+    name: "Filterpumpe ugeplan - Mandag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 60
+  - platform: template
+    id: pump_day_tue
+    name: "Filterpumpe ugeplan - Tirsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 61
+  - platform: template
+    id: pump_day_wed
+    name: "Filterpumpe ugeplan - Onsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 62
+  - platform: template
+    id: pump_day_thu
+    name: "Filterpumpe ugeplan - Torsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 63
+  - platform: template
+    id: pump_day_fri
+    name: "Filterpumpe ugeplan - Fredag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 64
+  - platform: template
+    id: pump_day_sat
+    name: "Filterpumpe ugeplan - Loerdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 65
+  - platform: template
+    id: pump_day_sun
+    name: "Filterpumpe ugeplan - Soendag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 66
+  - platform: template
+    id: skimmer_slot1_enabled
+    name: "Skimmer ugeplan - start 1 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 41
+  - platform: template
+    id: skimmer_slot2_enabled
+    name: "Skimmer ugeplan - start 2 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 43
+  - platform: template
+    id: skimmer_slot3_enabled
+    name: "Skimmer ugeplan - start 3 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 45
+  - platform: template
+    id: skimmer_day_mon
+    name: "Skimmer ugeplan - Mandag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 60
+  - platform: template
+    id: skimmer_day_tue
+    name: "Skimmer ugeplan - Tirsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 61
+  - platform: template
+    id: skimmer_day_wed
+    name: "Skimmer ugeplan - Onsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 62
+  - platform: template
+    id: skimmer_day_thu
+    name: "Skimmer ugeplan - Torsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 63
+  - platform: template
+    id: skimmer_day_fri
+    name: "Skimmer ugeplan - Fredag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 64
+  - platform: template
+    id: skimmer_day_sat
+    name: "Skimmer ugeplan - Loerdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 65
+  - platform: template
+    id: skimmer_day_sun
+    name: "Skimmer ugeplan - Soendag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 66
+  - platform: template
+    id: aer_slot1_enabled
+    name: "Luftpumpe ugeplan - start 1 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 41
+  - platform: template
+    id: aer_slot2_enabled
+    name: "Luftpumpe ugeplan - start 2 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 43
+  - platform: template
+    id: aer_slot3_enabled
+    name: "Luftpumpe ugeplan - start 3 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 45
+  - platform: template
+    id: aer_day_mon
+    name: "Luftpumpe ugeplan - Mandag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 60
+  - platform: template
+    id: aer_day_tue
+    name: "Luftpumpe ugeplan - Tirsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 61
+  - platform: template
+    id: aer_day_wed
+    name: "Luftpumpe ugeplan - Onsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 62
+  - platform: template
+    id: aer_day_thu
+    name: "Luftpumpe ugeplan - Torsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 63
+  - platform: template
+    id: aer_day_fri
+    name: "Luftpumpe ugeplan - Fredag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 64
+  - platform: template
+    id: aer_day_sat
+    name: "Luftpumpe ugeplan - Loerdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 65
+  - platform: template
+    id: aer_day_sun
+    name: "Luftpumpe ugeplan - Soendag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 66
+  - platform: template
+    id: uv_slot1_enabled
+    name: "UV-C ugeplan - start 1 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 41
+  - platform: template
+    id: uv_slot2_enabled
+    name: "UV-C ugeplan - start 2 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 43
+  - platform: template
+    id: uv_slot3_enabled
+    name: "UV-C ugeplan - start 3 aktiv"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 45
+  - platform: template
+    id: uv_day_mon
+    name: "UV-C ugeplan - Mandag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 60
+  - platform: template
+    id: uv_day_tue
+    name: "UV-C ugeplan - Tirsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 61
+  - platform: template
+    id: uv_day_wed
+    name: "UV-C ugeplan - Onsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 62
+  - platform: template
+    id: uv_day_thu
+    name: "UV-C ugeplan - Torsdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 63
+  - platform: template
+    id: uv_day_fri
+    name: "UV-C ugeplan - Fredag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 64
+  - platform: template
+    id: uv_day_sat
+    name: "UV-C ugeplan - Loerdag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 65
+  - platform: template
+    id: uv_day_sun
+    name: "UV-C ugeplan - Soendag"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 66
+button:
+  - platform: template
+    name: "Nulstil filterpumpe driftstimer"
+    entity_category: config
+    on_press:
+      - lambda: |-
+          id(pump_s_total)=0;
+          id(log_event).execute("filterpumpe timer nulstillet");
+  - platform: template
+    name: "Nulstil skimmer driftstimer"
+    entity_category: config
+    on_press:
+      - lambda: |-
+          id(skimmer_s_total)=0;
+          id(log_event).execute("skimmer timer nulstillet");
+  - platform: template
+    name: "Nulstil luftpumpe driftstimer"
+    entity_category: config
+    on_press:
+      - lambda: |-
+          id(aer_s_total)=0;
+          id(log_event).execute("luftpumpe timer nulstillet");
+  - platform: template
+    name: "Nulstil UV-C driftstimer"
+    entity_category: config
+    on_press:
+      - lambda: |-
+          id(uv_s_total)=0;
+          id(log_event).execute("UV-C timer nulstillet");
+  - platform: restart
+    name: "Genstart"
+    entity_category: config
+
+  - platform: template
+    name: "Filterpumpe interval - start forfra nu"
+    on_press:
+      - lambda: id(pump_reset_phase)=true;
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 80
+  - platform: template
+    name: "Skimmer interval - start forfra nu"
+    on_press:
+      - lambda: id(skimmer_reset_phase)=true;
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 80
+  - platform: template
+    name: "Luftpumpe interval - start forfra nu"
+    on_press:
+      - lambda: id(aer_reset_phase)=true;
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 80
+  - platform: template
+    name: "UV-C interval - start forfra nu"
+    on_press:
+      - lambda: id(uv_reset_phase)=true;
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 80
+text:
+  - platform: template
+    id: pump_start1
+    name: "Filterpumpe ugeplan - start 1 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "08:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 42
+  - platform: template
+    id: pump_start2
+    name: "Filterpumpe ugeplan - start 2 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "13:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 44
+  - platform: template
+    id: pump_start3
+    name: "Filterpumpe ugeplan - start 3 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "18:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 46
+  - platform: template
+    id: skimmer_start1
+    name: "Skimmer ugeplan - start 1 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "08:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 42
+  - platform: template
+    id: skimmer_start2
+    name: "Skimmer ugeplan - start 2 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "13:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 44
+  - platform: template
+    id: skimmer_start3
+    name: "Skimmer ugeplan - start 3 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "18:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 46
+  - platform: template
+    id: aer_start1
+    name: "Luftpumpe ugeplan - start 1 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "08:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 42
+  - platform: template
+    id: aer_start2
+    name: "Luftpumpe ugeplan - start 2 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "13:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 44
+  - platform: template
+    id: aer_start3
+    name: "Luftpumpe ugeplan - start 3 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "18:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 46
+  - platform: template
+    id: uv_start1
+    name: "UV-C ugeplan - start 1 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "08:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 42
+  - platform: template
+    id: uv_start2
+    name: "UV-C ugeplan - start 2 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "13:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 44
+  - platform: template
+    id: uv_start3
+    name: "UV-C ugeplan - start 3 HH:MM"
+    optimistic: true
+    restore_value: true
+    initial_value: "18:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 46

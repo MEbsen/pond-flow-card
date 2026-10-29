@@ -1,0 +1,10 @@
+# Eksempel: kontrollér dine faktiske entity-id'er i Home Assistant.
+# Brug garden_pond_controller i stedet, hvis din eksisterende installation
+# har bevaret det gamle præfiks. Tilpas da også det eksplicitte skimmer-id.
+type: custom:pond-flow-card
+title: Dammen
+entity_prefix: pond_controller
+entities:
+  skimmer_plan: select.pond_controller_skimmer_tidsplan_type
+# Indstillinger og tidsplaner åbner number/switch/text/select i HA.
+# Kortet kan ikke konkludere, at et tændt relæ giver fysisk vandflow.

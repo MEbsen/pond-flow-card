@@ -1,5 +1,7 @@
 # Pond Flow Card
 
+Version 0.6.9 gemmer controllerens YAML-forslag i `esphome/`, genkender både det gamle skimmerplan-navn og v2-navnet og viser tekstfelter samt select-indstillinger under **Indstillinger og tidsplaner**. Det gør de nye HH:MM-starttider og alle fire udganges tidsplanvalg tilgængelige via HA-detaljevisningen.
+
 Version 0.6.7 ensretter udstyrets navne som fede overskrifter med mindre, almindelig status nedenunder. Filterpumpens navn og status er delt i to linjer i diagrammet. Overflade- og bundtemperatur bruger samme kompakte typografi og vandrette opstilling.
 
 Version 0.6.5 giver den lodrette UV-C-pære en violet glød og viser samlet tændtid direkte ved filterets beskrivelse. UV-C-etiketten er flyttet op over filteret, fri af returledningen. Skimmerringene er fladere, ligger lidt under vandlinjen og afgrænses til dammens vandområde.
@@ -139,4 +141,10 @@ Kortet bruger eksisterende `select`-entiteter og deres tilgængelige valgmulighe
 
 JavaScript leveres direkte uden buildtrin eller eksterne browserafhængigheder. GitHub Actions kontrollerer JavaScript og HACS-format. Et push af et versions-tag som `v0.1.0` opretter en release med `pond-flow-card.js`, som HACS kan hente. Installation eller opdatering i den konkrete HA-instans kræver adgang til den instans.
 
-ESPHome-filen med lokale adgangsnøgler og referencebilledet er udeladt fra Git. Se `Projekt.md` for udstyr og afklaringer.
+## Controllerkonfiguration og versionshistorik
+
+Controllerens aktuelle forslag findes i [esphome/pond-controller-v2.yaml](esphome/pond-controller-v2.yaml). Se [flows og indstillinger](esphome/FLOWS.md) samt [lokal opsætning](esphome/README.md). Adgangsoplysninger ligger kun i en lokal `secrets.yaml`; en ufølsom [eksempelfil](esphome/secrets.example.yaml) er med i Git. Referencebilledet er fortsat udeladt.
+
+[Eksempel til controller v2](examples/controller-v2.yaml) viser koblingen til kortet. Brug det præfiks, som din HA-installation faktisk har: den nye YAML bruger enhedsnavnet `pond-controller`, mens en eksisterende installation kan have bevaret `garden_pond_controller`. Eksisterende entity-id'er bliver ikke nødvendigvis omdøbt ved firmwareopdatering.
+
+Git-commits gemmer projektets stadier. Der er ikke oprettet en ny HACS-release eller uploadet firmware som led i denne arkivering. Controlleren har bestået ESPHome-konfigurationsvalidering og kildegenerering før udskillelse af adgangsnøgler; fuld firmwarekompilering og hardwaretest udestår. Se `Projekt.md` for udstyr og tidligere afklaringer.
