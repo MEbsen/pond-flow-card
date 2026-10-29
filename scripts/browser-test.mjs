@@ -106,6 +106,39 @@ try {
   assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.garden_pond_controller_skimmer_tilstand',option:'Til'}]);
   await page.locator('[data-key="skimmer_plan"][data-option="Interval"]').click();
   assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.garden_pond_controller_skimmer_plan',option:'Interval'}]);
+  // v2 controller: new schedule name and HH:MM text controls are discoverable.
+  await page.evaluate(()=>{
+    const card=document.querySelector('pond-flow-card');
+    const prefix='pond_controller';
+    const states={
+      [`select.${prefix}_skimmer_tidsplan_type`]:{state:'Ugeplan',attributes:{options:['Uden tidsplan','Gentag med interval','Ugeplan']}},
+      [`select.${prefix}_filterpumpe_tidsplan_type`]:{state:'Uden tidsplan',attributes:{options:['Uden tidsplan','Gentag med interval','Ugeplan']}},
+      [`text.${prefix}_skimmer_ugeplan_start_1_hh_mm`]:{state:'08:00',attributes:{friendly_name:'Skimmer ugeplan - start 1 HH:MM'}}
+    };
+    window.v2Card=document.createElement('pond-flow-card');
+    window.v2Card.setConfig({entity_prefix:prefix,fish:[]});
+    document.body.append(window.v2Card);
+    window.v2Card.hass={states,callService:async(...args)=>window.calls.push(args)};
+    window.v2Card.shadowRoot.querySelector('[data-section="settings"]').open=true;
+    window.v2Card.addEventListener('hass-more-info',event=>window.v2Opened=event.detail.entityId);
+  });
+  const v2=page.locator('pond-flow-card').last();
+  assert.equal(await v2.locator('[data-key="skimmer_plan"][data-option="Ugeplan"]').count(),1);
+  await v2.locator('[data-key="skimmer_plan"][data-option="Gentag med interval"]').click();
+  assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.pond_controller_skimmer_tidsplan_type',option:'Gentag med interval'}]);
+  await v2.locator('[data-entity="text.pond_controller_skimmer_ugeplan_start_1_hh_mm"]').click();
+  assert.equal(await page.evaluate(()=>window.v2Opened),'text.pond_controller_skimmer_ugeplan_start_1_hh_mm');
+  assert.equal(await v2.locator('[data-entity="select.pond_controller_filterpumpe_tidsplan_type"]').count(),1);
+  await page.evaluate(()=>{
+    const card=window.v2Card;
+    card.hass={...card._hass,states:{...card._hass.states,
+      'text.pond_controller_skimmer_ugeplan_start_1_hh_mm':{state:'09:30',attributes:{friendly_name:'Skimmer ugeplan - start 1 HH:MM'}},
+      'select.pond_controller_filterpumpe_tidsplan_type':{state:'Ugeplan',attributes:{options:['Uden tidsplan','Gentag med interval','Ugeplan']}}
+    }};
+  });
+  assert.match(await v2.locator('[data-entity="text.pond_controller_skimmer_ugeplan_start_1_hh_mm"]').textContent(),/09:30/);
+  assert.match(await v2.locator('[data-entity="select.pond_controller_filterpumpe_tidsplan_type"]').textContent(),/Ugeplan/);
+  await page.evaluate(()=>window.v2Card.remove());
   await page.setViewportSize({width:360,height:900});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth),true);
   await page.screenshot({path:'preview-mobile.png',fullPage:true});

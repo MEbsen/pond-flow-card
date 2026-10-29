@@ -8,3 +8,10 @@ preview-fish.png
 preview-many-fish.png
 preview-school.png
 Trykfilter-principtegning-1.jpg
+
+# Versioned controller proposal; actual secrets remain excluded.
+!esphome/pond-controller-v2.yaml
+!esphome/secrets.example.yaml
+.esphome/
+*.bin
+*.elf
