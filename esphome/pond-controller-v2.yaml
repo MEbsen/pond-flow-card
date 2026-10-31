@@ -68,6 +68,12 @@ web_server:
   version: 3
   local: true
   sorting_groups:
+    - id: group_climate
+      name: "Sommer og vinter - temperaturgraenser"
+      sorting_weight: 1
+    - id: group_safety
+      name: "Sikkerhed - vandstand og sensorer"
+      sorting_weight: 2
     - id: group_pump
       name: "Filterpumpe"
       sorting_weight: 10
@@ -260,9 +266,10 @@ interval:
           const float tb = id(temp_bottom).state;
           const float ts = id(temp_surface).state;
           const float dist = id(level_distance).state;
-          const bool level_ok = std::isfinite(dist) && now-id(level_last_update)<60000;
-          const bool tb_ok = std::isfinite(tb) && now-id(bottom_last_update)<60000;
-          const bool ts_ok = std::isfinite(ts) && now-id(surface_last_update)<60000;
+          const uint32_t sensor_timeout_ms=(uint32_t)(id(sensor_timeout_seconds).state*1000.0f);
+          const bool level_ok = std::isfinite(dist) && now-id(level_last_update)<sensor_timeout_ms;
+          const bool tb_ok = std::isfinite(tb) && now-id(bottom_last_update)<sensor_timeout_ms;
+          const bool ts_ok = std::isfinite(ts) && now-id(surface_last_update)<sensor_timeout_ms;
           const float level = id(sensor_height).state-dist;
           const bool pump_config = id(bottom_restart).state>=id(bottom_stop).state && id(surface_restart).state>id(surface_stop).state;
           const bool skim_config = id(skimmer_max).state>id(skimmer_min).state &&
@@ -285,6 +292,7 @@ interval:
           const int pm = mode(id(pump_mode));
           const int sm = mode(id(skimmer_mode));
           const int am = mode(id(aerator_mode));
+          const int winter_policy = mode(id(aer_winter_policy));
           const int um = mode(id(uv_mode));
           if (level_ok && skim_config) {
             if (level<id(skimmer_min).state || level>id(skimmer_max).state)
@@ -304,7 +312,7 @@ interval:
               bool en2, const std::string &start2, bool en3, const std::string &start3,
               uint32_t &phase, bool &started, bool &reset, std::string &summary) -> bool {
             if(reset) {started=false; reset=false;}
-            if(plan==0) {started=false; summary="Uden tidsplan"; return true;}
+            if(plan==0) {started=false; summary="Konstant drift valgt - styrings- og sikkerhedsregler gaelder stadig"; return true;}
             const uint32_t duration=(uint32_t)(run_minutes*60.0f);
             if(plan==1) {
               const uint32_t period=(uint32_t)(every_hours*3600.0f+every_minutes*60.0f);
@@ -318,7 +326,7 @@ interval:
               const uint32_t elapsed=now-phase;
               if(elapsed>=period_ms) phase+=(elapsed/period_ms)*period_ms;
               char buf[100];
-              snprintf(buf,sizeof(buf),"%.0f min hver %.0f t %.0f min",run_minutes,every_hours,every_minutes);
+              snprintf(buf,sizeof(buf),"Gentag: koer %.0f min hver %.0f t %.0f min",run_minutes,every_hours,every_minutes);
               summary=buf;
               return now-phase<duration*1000;
             }
@@ -333,7 +341,7 @@ interval:
             const bool enabled[3]={en1,en2,en3};
             const std::string starts[3]={start1,start2,start3};
             int seconds[3]={0,0,0};
-            summary="Ugeplan";
+            summary="Valgte ugedage, start";
             for(int i=0;i<3;i++) if(enabled[i]) {
               seconds[i]=parse_time(starts[i]);
               if(seconds[i]<0) {
@@ -379,7 +387,7 @@ interval:
           if(id(skimmer_plan_summary).state!=skimmer_summary) id(skimmer_plan_summary).publish_state(skimmer_summary);
           std::string aer_summary;
           const uint8_t aer_days=(id(aer_day_sun).state ? 1 : 0) | (id(aer_day_mon).state ? 2 : 0) | (id(aer_day_tue).state ? 4 : 0) | (id(aer_day_wed).state ? 8 : 0) | (id(aer_day_thu).state ? 16 : 0) | (id(aer_day_fri).state ? 32 : 0) | (id(aer_day_sat).state ? 64 : 0);
-          const bool aer_scheduled=evaluate_plan(mode(id(aer_schedule)), am==0 && !winter,
+          const bool aer_scheduled=evaluate_plan(mode(id(aer_schedule)), am==0 && (!winter || winter_policy==1),
             id(aer_run_minutes).state,id(aer_every_hours).state,id(aer_every_minutes).state,aer_days,
             id(aer_slot1_enabled).state,id(aer_start1).state,
             id(aer_slot2_enabled).state,id(aer_start2).state,
@@ -400,10 +408,59 @@ interval:
           alarm(id(clock_fault), schedule_clock_fault, "FEJL: ugeplan mangler tid", "Ur OK eller ikke paakraevet");
           const bool pump=safe && (pm==1 || (pm==0 && pump_scheduled));
           const bool uv=pump && (um==1 || (um==0 && uv_scheduled));
-          const bool aer=am==1 || (am==0 && (winter || aer_scheduled));
+          // Winter behaviour is an explicit setting, not a hidden override.
+          const bool aer_auto=winter ? (winter_policy==0 || (winter_policy==1 && aer_scheduled)) : aer_scheduled;
+          const bool aer=am==1 || (am==0 && aer_auto);
           const bool requested=sm==1 || (sm==0 && skimmer_scheduled);
           const bool skim=requested && skim_safe;
           id(skimmer_blocked)=requested && !skim_safe;
+          auto publish_text=[](text_sensor::TextSensor *sensor, const std::string &value) {
+            if(sensor->state!=value) sensor->publish_state(value);
+          };
+          publish_text(id(pump_auto_rule), "Auto = sommer + vandstand over minimum + valgt tidsplan. Til = uden tidsplan; sikkerhed gaelder. Fra = slukket.");
+          publish_text(id(skimmer_auto_rule), "Auto = valgt tidsplan + sikkert vandstandsinterval/margin + overfladetemperatur. Til springer kun tidsplanen over. Fra = slukket.");
+          publish_text(id(uv_auto_rule), "Auto = filterpumpe taendt + UV-tidsplan. Til springer kun UV-tidsplanen over. UV kraever altid filterpumpen. Fra = slukket.");
+          std::string air_rule="Auto: sommer = valgt tidsplan; vinter = ";
+          air_rule+=winter_policy==0 ? "Konstant drift" : winter_policy==1 ? "Foelg tidsplan" : "Slukket";
+          air_rule+=". Til/Fra overstyrer begge aarstider. Ingen vandstandsbeskyttelse paa denne udgang.";
+          publish_text(id(aer_auto_rule),air_rule);
+          std::string pump_reason;
+          if(pm==2) pump_reason="Manuelt slukket";
+          else if(!level_ok || !tb_ok || !ts_ok) pump_reason="Stoppet: sensorfejl";
+          else if(!pump_config) pump_reason="Stoppet: ugyldige temperaturgraenser";
+          else if(id(low_water)) pump_reason="Stoppet: vandstand ved eller under minimum";
+          else if(winter) pump_reason="Stoppet: vintertilstand; begge sommergraenser skal overskrides";
+          else if(pm==1) pump_reason="Manuelt taendt; sikkerhed opfyldt; tidsplan ignoreres";
+          else pump_reason=pump ? "Auto: sommer, sikkerhed opfyldt, tidsplan tillader drift" : "Auto: tidsplan tillader ikke drift; se tidsplanoversigt";
+          std::string skim_reason;
+          if(sm==2) skim_reason="Manuelt slukket";
+          else if(!level_ok || !ts_ok) skim_reason="Stoppet: niveau- eller overfladesensorfejl";
+          else if(!skim_config) skim_reason="Stoppet: ugyldigt vandstandsinterval/genstartmargin";
+          else if(id(skimmer_level_blocked)) skim_reason="Stoppet: vandstand uden for tilladt genstartinterval";
+          else if(ts<id(skimmer_temp).state) skim_reason="Stoppet: overfladetemperatur under sikkerhedsgraense";
+          else if(sm==1) skim_reason="Manuelt taendt; sikkerhed opfyldt; tidsplan ignoreres";
+          else skim_reason=skim ? "Auto: tidsplan tillader drift; sikkerhed opfyldt" : "Auto: tidsplan tillader ikke drift; se tidsplanoversigt";
+          std::string air_reason;
+          if(am==2) air_reason="Manuelt slukket - ogsaa om vinteren";
+          else if(am==1) air_reason="Manuelt taendt - vinterstyring og tidsplan ignoreres";
+          else if(winter && winter_policy==0) air_reason="Auto: vinterstyring er Konstant drift; tidsplan bruges kun om sommeren";
+          else if(winter && winter_policy==2) air_reason="Auto: vinterstyring er Slukket";
+          else air_reason=std::string("Auto: ")+(winter ? "vinter" : "sommer")+(aer ? ", tidsplan tillader drift" : ", tidsplan tillader ikke drift; se tidsplanoversigt");
+          std::string uv_reason;
+          if(um==2) uv_reason="Manuelt slukket";
+          else if(!pump) uv_reason="Stoppet: filterpumpen er slukket";
+          else if(um==1) uv_reason="Manuelt taendt med filterpumpen; UV-tidsplan ignoreres";
+          else uv_reason=uv ? "Auto: filterpumpe taendt, UV-tidsplan tillader drift" : "Auto: UV-tidsplan tillader ikke drift; se tidsplanoversigt";
+          if(id(relay_fault)) {
+            pump_reason+="; RELAEFEJL: fysisk tilstand ukendt";
+            skim_reason+="; RELAEFEJL: fysisk tilstand ukendt";
+            air_reason+="; RELAEFEJL: fysisk tilstand ukendt";
+            uv_reason+="; RELAEFEJL: fysisk tilstand ukendt";
+          }
+          publish_text(id(pump_control_reason),pump_reason);
+          publish_text(id(skimmer_control_reason),skim_reason);
+          publish_text(id(aer_control_reason),air_reason);
+          publish_text(id(uv_control_reason),uv_reason);
           const uint8_t mask=(pump?1:0)|(skim?2:0)|(aer?4:0)|(uv?8:0);
           static uint8_t resend=0;
           if (mask!=id(relay_mask) || ++resend>=12 || id(relay_fault)) {
@@ -456,7 +513,7 @@ sensor:
     accuracy_decimals: 1
     update_interval: 10s
     lambda: |-
-      if (!std::isfinite(id(level_distance).state) || millis()-id(level_last_update)>=60000) return NAN;
+      if (!std::isfinite(id(level_distance).state) || millis()-id(level_last_update)>=(uint32_t)(id(sensor_timeout_seconds).state*1000.0f)) return NAN;
       return id(sensor_height).state-id(level_distance).state;
   - platform: dallas_temp
     one_wire_id: dallas_bus
@@ -594,6 +651,89 @@ text_sensor:
     web_server:
       sorting_group_id: group_uv
       sorting_weight: 15
+  - platform: template
+    id: pump_auto_rule
+    name: "Filterpumpe Auto - saadan styres den"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 1
+  - platform: template
+    id: pump_control_reason
+    name: "Filterpumpe aktuel styring"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_pump
+      sorting_weight: 2
+  - platform: template
+    id: skimmer_auto_rule
+    name: "Skimmer Auto - saadan styres den"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 1
+  - platform: template
+    id: skimmer_control_reason
+    name: "Skimmer aktuel styring"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_skimmer
+      sorting_weight: 2
+  - platform: template
+    id: aer_auto_rule
+    name: "Luftpumpe Auto - saadan styres den"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 1
+  - platform: template
+    id: aer_control_reason
+    name: "Luftpumpe aktuel styring"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 2
+  - platform: template
+    id: uv_auto_rule
+    name: "UV-C Auto - saadan styres den"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 1
+  - platform: template
+    id: uv_control_reason
+    name: "UV-C aktuel styring"
+    update_interval: never
+    web_server:
+      sorting_group_id: group_uv
+      sorting_weight: 2
+  - platform: template
+    id: mode_help
+    name: "Styring - Auto Til Fra forklaret"
+    update_interval: 30s
+    lambda: |-
+      return std::string("Auto: foelg styringsregler OG valgt tidsplan. Til: manuel taending uden tidsplan; sikkerhed gaelder. Fra: manuelt slukket.");
+    web_server:
+      sorting_group_id: group_climate
+      sorting_weight: 0
+  - platform: template
+    id: climate_help
+    name: "Sommer vinter - saadan skifter tilstanden"
+    update_interval: 30s
+    lambda: |-
+      return std::string("Vinter: bund under vintergraensen ELLER overflade ved/under vintergraensen. Sommer: BEGGE temperaturer over sommergraenserne. Ellers beholdes tilstanden.");
+    web_server:
+      sorting_group_id: group_climate
+      sorting_weight: 1
+  - platform: template
+    id: plan_help
+    name: "Tidsplan - valgene forklaret"
+    update_interval: 30s
+    lambda: |-
+      return std::string("Konstant drift: tillad drift hele tiden, naar styring/sikkerhed tillader det. Interval: koeretid hver valgt periode. Ugeplan: koeretid fra valgte starter/dage. Tidsplan omgaer aldrig sikkerhed.");
+    web_server:
+      sorting_group_id: group_climate
+      sorting_weight: 2
 select:
   - platform: template
     id: pump_mode
@@ -640,8 +780,8 @@ select:
     name: "Filterpumpe tidsplan - type"
     optimistic: true
     restore_value: true
-    options: ["Uden tidsplan", "Gentag med interval", "Ugeplan"]
-    initial_option: "Uden tidsplan"
+    options: ["Konstant drift", "Gentag med interval", "Ugeplan"]
+    initial_option: "Konstant drift"
     web_server:
       sorting_group_id: group_pump
       sorting_weight: 10
@@ -650,7 +790,7 @@ select:
     name: "Skimmer tidsplan - type"
     optimistic: true
     restore_value: true
-    options: ["Uden tidsplan", "Gentag med interval", "Ugeplan"]
+    options: ["Konstant drift", "Gentag med interval", "Ugeplan"]
     initial_option: "Gentag med interval"
     web_server:
       sorting_group_id: group_skimmer
@@ -660,7 +800,7 @@ select:
     name: "Luftpumpe tidsplan - type"
     optimistic: true
     restore_value: true
-    options: ["Uden tidsplan", "Gentag med interval", "Ugeplan"]
+    options: ["Konstant drift", "Gentag med interval", "Ugeplan"]
     initial_option: "Gentag med interval"
     web_server:
       sorting_group_id: group_aer
@@ -670,11 +810,21 @@ select:
     name: "UV-C tidsplan - type"
     optimistic: true
     restore_value: true
-    options: ["Uden tidsplan", "Gentag med interval", "Ugeplan"]
-    initial_option: "Uden tidsplan"
+    options: ["Konstant drift", "Gentag med interval", "Ugeplan"]
+    initial_option: "Konstant drift"
     web_server:
       sorting_group_id: group_uv
       sorting_weight: 10
+  - platform: template
+    id: aer_winter_policy
+    name: "Luftpumpe Auto - vinterstyring"
+    optimistic: true
+    restore_value: true
+    options: ["Konstant drift", "Foelg tidsplan", "Slukket"]
+    initial_option: "Konstant drift"
+    web_server:
+      sorting_group_id: group_aer
+      sorting_weight: 5
 number:
   - platform: template
     id: sensor_height
@@ -688,6 +838,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_safety
+      sorting_weight: 10
   - platform: template
     id: critical_level
     name: "Filterpumpe stop under vandstand"
@@ -700,6 +853,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_safety
+      sorting_weight: 10
   - platform: template
     id: skimmer_min
     name: "Skimmer minimum vandstand"
@@ -712,6 +868,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_safety
+      sorting_weight: 10
   - platform: template
     id: skimmer_max
     name: "Skimmer maksimum vandstand"
@@ -724,6 +883,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_safety
+      sorting_weight: 10
   - platform: template
     id: bottom_stop
     name: "Vinter bund stop under"
@@ -736,6 +898,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_climate
+      sorting_weight: 10
   - platform: template
     id: bottom_restart
     name: "Sommer bund genstart over"
@@ -748,6 +913,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_climate
+      sorting_weight: 10
   - platform: template
     id: surface_stop
     name: "Vinter overflade stop ved eller under"
@@ -760,6 +928,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_climate
+      sorting_weight: 10
   - platform: template
     id: surface_restart
     name: "Sommer overflade genstart over"
@@ -772,6 +943,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_climate
+      sorting_weight: 10
   - platform: template
     id: skimmer_temp
     name: "Skimmer stop under overfladetemperatur"
@@ -784,6 +958,9 @@ number:
     restore_value: true
     mode: box
     entity_category: config
+    web_server:
+      sorting_group_id: group_safety
+      sorting_weight: 10
   - platform: template
     id: uv_service_hours
     name: "UV-C servicegraense"
@@ -989,8 +1166,23 @@ number:
     mode: box
     entity_category: config
     web_server:
-      sorting_group_id: group_skimmer
-      sorting_weight: 90
+      sorting_group_id: group_safety
+      sorting_weight: 10
+  - platform: template
+    id: sensor_timeout_seconds
+    name: "Sikkerhed - sensorfejl efter manglende maaling"
+    unit_of_measurement: "s"
+    min_value: 15
+    max_value: 600
+    step: 5
+    initial_value: 60
+    optimistic: true
+    restore_value: true
+    mode: box
+    entity_category: config
+    web_server:
+      sorting_group_id: group_safety
+      sorting_weight: 20
 switch:
   - platform: template
     id: pump_slot1_enabled

@@ -1,4 +1,4 @@
-# Damstyring v2 – opdateret 29. oktober 2026
+# Damstyring v2 – opdateret 1. november 2026
 
 Originalfilen i Downloads er uændret. Dette forslag er ikke uploadet til enheden.
 
@@ -6,10 +6,10 @@ Originalfilen i Downloads er uændret. Dette forslag er ikke uploadet til enhede
 
 I Auto kører filterpumpen, når alle følgende betingelser er opfyldt:
 
-- Gyldig bundtemperatur, overfladetemperatur og vandstand. Målinger bliver ugyldige efter 60 sekunder uden en ny gyldig værdi.
+- Gyldig bundtemperatur, overfladetemperatur og vandstand. Målinger bliver ugyldige efter den konfigurerbare sensor-timeout, som standard 60 sekunder uden en ny gyldig værdi.
 - Vandstanden er **over** den indstillede minimumsvandstand. Ved præcis grænsen eller under stoppes pumpen. Ingen genstartmargin, ingen manuel kvittering: den frigives automatisk, når vandstanden igen er over grænsen. Andre startbetingelser gælder stadig.
 - Temperaturtilstanden er sommer.
-- Pumpens egen valgfri tidsplan tillader drift. Standard er Uden tidsplan.
+- Pumpens egen valgfri tidsplan tillader drift. Standard er Konstant drift.
 
 Vintertilstand aktiveres ved bundtemperatur **under 6 °C** eller overfladetemperatur **0 °C eller derunder**. Sommer aktiveres igen, når bundtemperatur **og** overfladetemperatur samtidig er **over 6 °C**. Imellem disse grænser beholdes tilstanden. Eksempel: efter frost giver bund 8 °C og overflade 3 °C fortsat vinter; først når overfladen også er over 6 °C, bliver det sommer. Når sommer er aktiv, giver overflade 3 °C i sig selv ikke vinter igen.
 
@@ -19,13 +19,13 @@ Alle fire temperaturgrænser er konfigurerbare. En fælles gemt temperaturtilsta
 
 ## UV-C
 
-I Auto følger UV filterpumpen, eventuelt begrænset af UV's egen tidsplan. Uden tidsplan følger den filterpumpen direkte. Filterstop slukker altid UV. Der måles ikke fysisk vandflow, så beskyttelsen bygger på filterpumpens tændkommando. UV og pumpe kan skifte i samme styringsrunde; der er ingen primingforsinkelse.
+I Auto følger UV filterpumpen, eventuelt begrænset af UV's egen tidsplan. Konstant drift følger den filterpumpen direkte. Filterstop slukker altid UV. Der måles ikke fysisk vandflow, så beskyttelsen bygger på filterpumpens tændkommando. UV og pumpe kan skifte i samme styringsrunde; der er ingen primingforsinkelse.
 
 ## Luftpumpe
 
-I Auto kører luftpumpen konstant i vintertilstand. I sommertilstand følger den sin egen tidsplan. Den er ikke længere direkte koblet til filterpumpens stop/start.
+I Auto følger luftpumpen sin egen tidsplan om sommeren. Om vinteren følger den det synlige valg **Luftpumpe Auto - vinterstyring**: **Konstant drift** (standard), **Foelg tidsplan** eller **Slukket**. Den er ikke længere direkte koblet til filterpumpens stop/start.
 
-Det betyder eksempelvis, at lav vandstand eller manuelt filterstop om sommeren ikke i sig selv starter luftpumpen. En tidsplan begrænser aldrig luftpumpens automatiske vinterdrift. Manuel Fra kan stadig slukke den.
+Det betyder eksempelvis, at lav vandstand eller manuelt filterstop om sommeren ikke i sig selv starter luftpumpen. Ved **Konstant drift** bruges tidsplanen kun om sommeren. Ved **Foelg tidsplan** bruges samme tidsplan i begge temperaturtilstande. Ved **Slukket** er Auto-vinterdrift slået fra. Manuel Til/Fra tilsidesætter vintervalget.
 
 Standardens sommertidsplan er 15 minutter hver 6. time. Dette er en redigerbar eksempelplan, ikke en beregning af dammens iltbehov.
 
@@ -48,7 +48,7 @@ Hver udgang har sin egen gruppe på enhedens website og samme indstillinger:
 
 | Felt | Betydning |
 |---|---|
-| Tidsplan – type: Uden tidsplan | Ingen begrænsning fra tidsplanen; den øvrige automatik gælder |
+| Tidsplan – type: Konstant drift | Ingen begrænsning fra tidsplanen; den øvrige automatik gælder |
 | Tidsplan – type: Gentag med interval | Kør i den valgte køretid for hver valgt periode |
 | Tidsplan – type: Ugeplan | Kør fra op til tre klokkeslæt på valgte ugedage |
 | Køretid pr start | Antal minutter, fælles for udgangens tre ugeplanstarter og intervalplan |
@@ -63,7 +63,7 @@ Eksempel: Gentag hver = 6 timer og 0 ekstra minutter, køretid = 15 minutter bet
 
 I ugeplan er start 1 aktiv som standard; start 2 og 3 er slået fra. Alle ugedage er valgt. Standardtiderne er 08:00, 13:00 og 18:00. Starter kan overlappe og giver så sammenhængende drift. Et vindue over midnat tilhører dagen, hvor det starter. Ved sommertidsskift følger planen lokalt klokkeslæt, så et sprunget tidspunkt springes over, og et gentaget tidspunkt kan give gentagen drift.
 
-Standard: Filterpumpe og UV Uden tidsplan; skimmer og luft Gentag med interval. Ugeplansfelter har ingen effekt, når interval er valgt, og intervalfelter har ingen effekt, når ugeplan er valgt. Luftpumpen ignorerer tidsplanen i Auto-vinterdrift.
+Standard: Filterpumpe og UV Konstant drift; skimmer og luft Gentag med interval. Ugeplansfelter har ingen effekt, når interval er valgt, og intervalfelter har ingen effekt, når ugeplan er valgt. Luftpumpen ignorerer kun tidsplanen i Auto-vinterdrift, når vinterstyringen er Konstant drift eller Slukket. Ved Foelg tidsplan gælder den også om vinteren.
 
 ## Auto / Til / Fra
 
@@ -88,7 +88,7 @@ Styringen kører hvert 5. sekund efter 15 sekunders opstart. Niveaumålingen fil
 
 Automatik, sikkerhedsregler, timetællere og intervalplaner kører uden Wi-Fi, Home Assistant eller internet. Webinterfacets assets er nu valgt som lokale, og indstillinger er grupperet efter udgang. Browseren skal stadig have en netværksforbindelse til selve enheden.
 
-Ugeplan kræver gyldigt klokkeslæt. SNTP eller Home Assistant kan sætte uret; det fortsætter ved netudfald. Efter fuldt strømsvigt uden efterfølgende tidssynkronisering kan automatiske ugeplaner ikke køre. Urfejl vises for ugeplaner, der aktuelt skal bruges i Auto. Automatisk vinterluft kræver ikke klokkeslæt. Faste ugedage/klokkeslæt efter strømsvigt helt uden net kræver et batteribackup-ur og en udvidelse af YAML.
+Ugeplan kræver gyldigt klokkeslæt. SNTP eller Home Assistant kan sætte uret; det fortsætter ved netudfald. Efter fuldt strømsvigt uden efterfølgende tidssynkronisering kan automatiske ugeplaner ikke køre. Urfejl vises for ugeplaner, der aktuelt skal bruges i Auto. Vinterluft med Konstant drift kræver ikke klokkeslæt. Vintervalget Foelg tidsplan kræver gyldigt ur, hvis Ugeplan er valgt. Faste ugedage/klokkeslæt efter strømsvigt helt uden net kræver et batteribackup-ur og en udvidelse af YAML.
 
 Fra den oprindelige fil er døgnoversigter, daglige min/max, højvandsalarm og særskilt frostalarm fortsat ikke med i v2. Hændelsesloggen er kort og gemmes ikke over genstart.
 
@@ -97,3 +97,22 @@ Fra den oprindelige fil er døgnoversigter, daglige min/max, højvandsalarm og s
 ESPHome-konfigurationsvalidering er bestået i en lokal valideringskopi med testværdier for Wi-Fi. C++-kildegenereringen lykkedes. Fuld firmwarekompilering blev afbrudt under download/udpakning af ESP-IDF, fordi C-drevet løb tør for plads. De midlertidige validatorpakker og buildfiler fra forsøget er fjernet. Firmwaren er derfor ikke bekræftet kompilerbar. Ingen firmware er uploadet eller testet på dammens hardware. Originalens pins, board og relæadresse er videreført. Wi-Fi, API-nøgle og hotspot-adgangskode skal ligge i lokal secrets.yaml; de er ikke med i repositoryet.
 
 Brugerfladens tekstfelter og gruppering følger [ESPHome Template Text](https://esphome.io/components/text/template/) og [Web Server](https://esphome.io/components/web_server/).
+
+## Tydelig opsætning og synlig Auto-styring (1. november 2026)
+
+HA-kortet er ikke ændret i denne opdatering. ESPHome-websiden har nu særskilte grupper for **Sommer og vinter - temperaturgraenser**, **Sikkerhed - vandstand og sensorer** samt hver af de fire udgange.
+
+Hver udgang viser:
+
+- **Auto - saadan styres den**: hvilke betingelser Auto følger, og hvad Til/Fra betyder.
+- **Aktuel styring**: hvorfor controlleren aktuelt ønsker udgangen tændt/slukket; ved relæfejl oplyses, at fysisk tilstand er ukendt.
+- **Tidsplanoversigt**: den valgte plan eller fejl i planen.
+- De faktiske planfelter: type, køretid, gentagelse, ugedage og starter.
+
+**Auto** er ikke en ekstra tidsplan: det betyder at følge udgangens styringsregler **og** den valgte tidsplan. **Konstant drift** betyder ingen tidsbegrænsning; sikkerheds- og øvrige styringsregler gælder stadig. **Til** springer tidsplanen over, men ikke filter/skimmer/UV-sikkerheden. **Fra** slukker udgangen. De eksisterende select-værdier er bevaret for kompatibilitet.
+
+Skimmerens 15 minutter hver 6. time kommer udelukkende fra dens synlige standardvalg **Gentag med interval**, **Koeretid pr start = 15**, **Gentag hver - timer = 6** og **ekstra minutter = 0**. Der er ingen ekstra skjult startfunktion. Det samme gælder luftpumpens sommerplan. Filter og UV starter fortsat med Konstant drift.
+
+Temperaturgrænserne er fortsat fire selvstændige felter. Vandstandsreference, filterminimum, skimmerminimum/-maksimum, skimmermargin og skimmertemperatur er konfigurerbare. Sensor-timeout er nu også et synligt sikkerhedsfelt: standard 60 sekunder, område 15–600 sekunder. Måleområdefilteret for A02YYUW er fast hardwarevalidering. Sikkerhedsfunktionerne kan ikke deaktiveres med manuel Til.
+
+Navnet på det tidligere planvalg Uden tidsplan er nu **Konstant drift**, så det er en eksplicit driftsplan. Det betyder tilladelse hele tiden, stadig underlagt styrings- og sikkerhedsregler. Auto har ingen selvstændig startfunktion: skimmerens starter kommer fra dens valgte plan, og luftpumpens vinterdrift kommer fra dens eksplicitte vintervalg. Tidligere HA-automationer, som vælger den bogstavelige option Uden tidsplan, skal bruge Konstant drift i stedet. Controllerens og HA-kortets entity-ID'er er ikke ændret.

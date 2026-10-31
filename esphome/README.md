@@ -30,3 +30,9 @@ Styringsregler og intervalplaner fungerer uden internet eller Home Assistant. Ug
 ## Versionshistorik
 
 Git-commits gemmer projektets stadier, så tidligere versioner kan ses og gendannes. Den stabile fil hedder fortsat `pond-controller-v2.yaml`; fremtidige ændringer kan gemmes som nye commits uden at lave kopier med nye filnavne.
+
+## Opsætning opdateret 1. november 2026
+
+ESPHome viser nu Auto-forklaringer og aktuel styringsårsag for hver udgang, grupperer temperatur/sikkerhed og udstiller luftpumpens vinterstyring som et valg. Sensor-timeout kan indstilles. Eksisterende relæ-, mode- og tidsplan-ID'er samt standardplaner er bevaret. HA-kortet er uændret i denne opdatering. Se FLOWS.md for valg og grænser.
+
+Kontrol af denne opdatering: ESPHome 2026.10.1-konfigurationsvalidering og C++-kildegenerering bestod. Fem regressionstests kontrollerer relæregler, vintervalg, manuel styring, sikkerhed og synlige standardplaner. Fuld firmwarekompilering og hardwaretest er ikke udført for denne opdatering. Testene kan køres med python scripts/test-controller-rules.py fra repositoryets rod.
