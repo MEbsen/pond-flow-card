@@ -15,3 +15,7 @@ Trykfilter-principtegning-1.jpg
 .esphome/
 *.bin
 *.elf
+
+# Local screenshots from card interaction tests
+preview-controls.png
+preview-controls-mobile.png

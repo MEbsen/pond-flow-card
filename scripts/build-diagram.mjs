@@ -20,7 +20,7 @@ svg=svg.replace('<rect x="929" y="327" width="83" height="11" rx="5" fill="#b9a6
 </g>`);
 svg=svg.replace('</defs>','<radialGradient id="uv-warmth"><stop stop-color="#eadbff" stop-opacity=".9"/><stop offset=".45" stop-color="#b58aff" stop-opacity=".5"/><stop offset="1" stop-color="#8642ed" stop-opacity="0"/></radialGradient></defs>');
 svg=svg.replace('<text x="971" y="372"','<text x="970" y="307"');
-svg=svg.replace('Overfladerens · kører','Overfladerens · ${esc(operating(\'skimmer_running\'))}');
+svg=svg.replace('Overfladerens · kører','${esc(operating(\'skimmer_running\'))}');
 svg=svg.replace('Filterpumpe · kører','Filterpumpe · ${esc(operating(\'pump_running\'))}');
 svg=svg.replace('UV-C tændt','UV-C · ${esc(operating(\'uv_running\'))}');
 let temperatureIndex=0;
@@ -91,7 +91,7 @@ svg=svg.replace('</defs>','<g id="temperature-icon" fill="none" stroke="#9cc7d0"
 const temperature=(key,label,y)=>`<g class="temperature-status" data-info="${key}" transform="translate(475 ${y})"><use href="#temperature-icon" x="0" y="-16"/><text x="23" y="0"><tspan class="small">${label}</tspan><tspan dx="6" class="temperature-reading">${'${val(\''+key+'\',\'23,1 °C\')}'}</tspan></text></g>`;
 svg=svg.replace(/<circle cx="467"[^\n]*/, temperature('temp_surface','OVERFLADE','400'))
  .replace(/<circle cx="469"[^\n]*/,temperature('temp_bottom','BUND','${530+depth}'));
-const from=card.indexOf('<svg '),to=card.indexOf('</svg>',from)+6;
+const from=card.indexOf('<svg data-section="diagram"'),to=card.indexOf('</svg>',from)+6;
 if(from<0 || to<6) throw Error('Card SVG not found');
 card=card.slice(0,from)+svg+card.slice(to);
 await writeFile('pond-flow-card.js',card);

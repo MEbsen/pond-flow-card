@@ -1,5 +1,18 @@
 # Pond Flow Card
 
+## Version 0.7.0 – betjening samlet ved hver enhed
+
+Diagrammet viser målingerne uden de tidligere ekstra målefelter. Skimmerens undertitel viser kun status. Sommer/vinter vises med sol/sne tæt ved diagrammet; klik åbner controllerens temperaturgrænser. Det ændrer grænserne, ikke et manuelt sæsonvalg.
+
+Filterpumpe, UV-C, luftpumpe og skimmer har hver sit afrundede betjeningsområde med status, driftstimer, Auto/Til/Fra, planvalg, køretid og direkte interval-/ugeplanfelter. Ugeplanen har syv dagsknapper og tre starttidspunkter med individuel aktivering. Alle tre starter bruger udgangens fælles køretid, som controlleren understøtter. Relevante sikkerheds- og servicegrænser står ved den pågældende enhed, og luftpumpens vintervalg findes i dens område.
+
+Ændringer sendes direkte til de eksisterende HA-entiteter; kortet opretter ingen egne automationer. Felter bruger controllerens aktuelle værdier, grænser og tilgængelige valgmuligheder. Et tal eller klokkeslæt sendes, når ændringen bekræftes/afsluttes i feltet. Manglende eller utilgængelige felter er deaktiverede. Dataopdateringer bevarer igangværende indtastning og diagrammets animationer.
+
+Forbindelsesikonet skelner mellem **Live data** (alle tre målinger rapporteret inden for to minutter), **Data er forsinkede**, **Data utilgængelige** og **Ingen forbindelse**. Hvis HA ikke leverer `last_reported` til kortet, står der **Data tilgængelige**; det er ikke en bekræftelse af nye målinger. Demo viser særskilt Demo. Entitets-/forbindelseslisten og den generelle indstillingsliste er fjernet fra kortet.
+
+Der kræves ingen ny controllerkode for denne kortopdatering. De nye felter kræver de tilhørende entiteter fra den aktuelle [controller-YAML](esphome/pond-controller-v2.yaml). Brug dit faktiske `entity_prefix`; eksisterende manuelt angivne entiteter understøttes fortsat.
+
+
 Version 0.6.9 gemmer controllerens YAML-forslag i `esphome/`, genkender både det gamle skimmerplan-navn og v2-navnet og viser tekstfelter samt select-indstillinger under **Indstillinger og tidsplaner**. Det gør de nye HH:MM-starttider og alle fire udganges tidsplanvalg tilgængelige via HA-detaljevisningen.
 
 Version 0.6.7 ensretter udstyrets navne som fede overskrifter med mindre, almindelig status nedenunder. Filterpumpens navn og status er delt i to linjer i diagrammet. Overflade- og bundtemperatur bruger samme kompakte typografi og vandrette opstilling.

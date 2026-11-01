@@ -63,7 +63,7 @@ try {
   assert.equal(await page.locator('path.active').count(),3);
   assert.equal(await page.locator('.skimmer-current.moving .intake-ring').count(),3);
   assert.equal(await page.locator('.uv-glow').evaluate(el=>getComputedStyle(el).opacity),'1');
-  assert.match(await page.locator('[data-info="uv_hours"]').textContent(),/2,5 h tændt i alt/);
+  assert.match(await page.locator('svg [data-info="uv_hours"]').textContent(),/2,5 h tændt i alt/);
   assert.equal(await page.locator('.uv-lamp.on .uv-tube').evaluate(el=>getComputedStyle(el).fill),'rgb(239, 227, 255)');
   assert.equal(await page.locator('.skimmer-current').getAttribute('clip-path'),'url(#fish-water)');
   const ringsWithinWater=await page.evaluate(()=>{
@@ -98,8 +98,8 @@ try {
   assert.equal(await page.locator('.fish').count(),2);
   assert.equal(await page.locator('.fountain.running').count(),0);
   assert.equal(await page.locator('[data-key="icefree_mode"]').count(),0);
-  assert.equal(await page.locator('svg').textContent().then(text=>text.includes('IceFree')),false);
-  assert.match(await page.locator('.equipment').first().textContent(),/2,5 h i alt/);
+  assert.equal(await page.locator('.pond-diagram').textContent().then(text=>text.includes('IceFree')),false);
+  assert.match(await page.locator('[data-section="unit-pump"] .runtime').textContent(),/2,5 h i alt/);
   assert.equal(await page.locator('[data-key="season"]').count(),0);
   assert.equal(await page.locator('[data-key="fill_mode"]').count(),0);
   await page.locator('[data-key="skimmer_mode"][data-option="Til"]').click();
@@ -119,16 +119,16 @@ try {
     window.v2Card.setConfig({entity_prefix:prefix,fish:[]});
     document.body.append(window.v2Card);
     window.v2Card.hass={states,callService:async(...args)=>window.calls.push(args)};
-    window.v2Card.shadowRoot.querySelector('[data-section="settings"]').open=true;
     window.v2Card.addEventListener('hass-more-info',event=>window.v2Opened=event.detail.entityId);
   });
   const v2=page.locator('pond-flow-card').last();
   assert.equal(await v2.locator('[data-key="skimmer_plan"][data-option="Ugeplan"]').count(),1);
   await v2.locator('[data-key="skimmer_plan"][data-option="Gentag med interval"]').click();
   assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['select','select_option',{entity_id:'select.pond_controller_skimmer_tidsplan_type',option:'Gentag med interval'}]);
-  await v2.locator('[data-entity="text.pond_controller_skimmer_ugeplan_start_1_hh_mm"]').click();
-  assert.equal(await page.evaluate(()=>window.v2Opened),'text.pond_controller_skimmer_ugeplan_start_1_hh_mm');
-  assert.equal(await v2.locator('[data-entity="select.pond_controller_filterpumpe_tidsplan_type"]').count(),1);
+  await v2.locator('[data-control="text.pond_controller_skimmer_ugeplan_start_1_hh_mm"]').fill('10:15');
+  await v2.locator('[data-control="text.pond_controller_skimmer_ugeplan_start_1_hh_mm"]').dispatchEvent('change');
+  assert.deepEqual(await page.evaluate(()=>window.calls.at(-1)),['text','set_value',{entity_id:'text.pond_controller_skimmer_ugeplan_start_1_hh_mm',value:'10:15'}]);
+  assert.equal(await v2.locator('[data-key="pump_plan"]').count(),3);
   await page.evaluate(()=>{
     const card=window.v2Card;
     card.hass={...card._hass,states:{...card._hass.states,
@@ -136,8 +136,8 @@ try {
       'select.pond_controller_filterpumpe_tidsplan_type':{state:'Ugeplan',attributes:{options:['Uden tidsplan','Gentag med interval','Ugeplan']}}
     }};
   });
-  assert.match(await v2.locator('[data-entity="text.pond_controller_skimmer_ugeplan_start_1_hh_mm"]').textContent(),/09:30/);
-  assert.match(await v2.locator('[data-entity="select.pond_controller_filterpumpe_tidsplan_type"]').textContent(),/Ugeplan/);
+  assert.equal(await v2.locator('[data-control="text.pond_controller_skimmer_ugeplan_start_1_hh_mm"]').inputValue(),'09:30');
+  assert.equal(await v2.locator('[data-key="pump_plan"][data-option="Ugeplan"]').getAttribute('aria-pressed'),'true');
   await page.evaluate(()=>window.v2Card.remove());
   await page.setViewportSize({width:360,height:900});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth),true);
@@ -185,7 +185,7 @@ try {
   // objects, not replace them and restore an approximate playback time.
   const continuity = await page.evaluate(async()=>{
     const card=document.querySelector('pond-flow-card');
-    const svg=card.shadowRoot.querySelector('svg');
+    const svg=card.shadowRoot.querySelector('.pond-diagram');
     const animated=[...svg.querySelectorAll('.fish-swim,.fish-facing,.flow.active,.rotor,.skimmer-current.moving .intake-ring,.fountain.running path,.ripple,.waterfall-splash,.waterfall-ripple')];
     const animations=animated.map(el=>el.getAnimations()[0]).filter(Boolean);
     const fish=card.shadowRoot.querySelector('.fish-swim');
@@ -205,7 +205,7 @@ try {
       }};
       await nextFrame();
     }
-    const sameNodes=animated.every(el=>el.isConnected) && svg===card.shadowRoot.querySelector('svg');
+    const sameNodes=animated.every(el=>el.isConnected) && svg===card.shadowRoot.querySelector('.pond-diagram');
     const sameAnimations=animations.every(a=>a.effect.target.getAnimations().includes(a));
     const advanced=animations.every((a,i)=>a.currentTime>initial[i]);
     const fishProgress=fish.getAnimations()[0].currentTime>22000;
