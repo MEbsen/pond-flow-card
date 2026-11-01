@@ -36,3 +36,7 @@ Git-commits gemmer projektets stadier, så tidligere versioner kan ses og gendan
 ESPHome viser nu Auto-forklaringer og aktuel styringsårsag for hver udgang, grupperer temperatur/sikkerhed og udstiller luftpumpens vinterstyring som et valg. Sensor-timeout kan indstilles. Eksisterende relæ-, mode- og tidsplan-ID'er samt standardplaner er bevaret. HA-kortet er uændret i denne opdatering. Se FLOWS.md for valg og grænser.
 
 Kontrol af denne opdatering: ESPHome 2026.10.1-konfigurationsvalidering og C++-kildegenerering bestod. Fem regressionstests kontrollerer relæregler, vintervalg, manuel styring, sikkerhed og synlige standardplaner. Fuld firmwarekompilering og hardwaretest er ikke udført for denne opdatering. Testene kan køres med python scripts/test-controller-rules.py fra repositoryets rod.
+
+## Controlleropdatering til kort 0.7.1
+
+Luftpumpen har nu Vinter/Sommer direkte som Auto-plan i stedet for det særskilte vintervalg. Dette kræver ny firmwareupload. For kun vinterdrift: vælg Auto og derefter Vinter. Gemte planvalg kan overleve uploaden; det nye standardvalg erstatter ikke nødvendigvis det gamle. Konstant drift betyder hele året. Driftstællere og deres nulstillingsknapper er bevaret.

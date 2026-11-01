@@ -71,8 +71,43 @@ try {
   assert.deepEqual(await last(),['number','set_value',{entity_id:draft,value:25}]);
   await echo(draft,'30');
   assert.equal(await page.locator(`[data-control="${draft}"]`).inputValue(),'30');
-  await unit('aer').locator('[data-direct-select][data-value="Foelg tidsplan"]').click();
-  assert.deepEqual(await last(),['select','select_option',{entity_id:`select.${prefix}_luftpumpe_auto_vinterstyring`,option:'Foelg tidsplan'}]);
+  for(const option of ['Vinter','Sommer','Konstant drift']) {
+    await unit('aer').locator(`[data-key="aerator_plan"][data-option="${option}"]`).click();
+    assert.deepEqual(await last(),['select','select_option',{entity_id:`select.${prefix}_luftpumpe_tidsplan_type`,option}]);
+  }
+  assert.equal(await unit('aer').locator('.season-choice').count(),0);
+  // Every reset targets only its own counter, and asks before deleting it.
+  for(const [id,base] of [['pump','filterpumpe'],['uv','uv_c'],['aer','luftpumpe'],['skimmer','skimmer']]) {
+    const button=`button.${prefix}_nulstil_${base}_driftstimer`;
+    page.once('dialog',dialog=>dialog.accept());
+    await unit(id).locator('[data-reset-hours]').click();
+    assert.deepEqual(await last(),['button','press',{entity_id:button}]);
+  }
+  const beforeCancel=await page.evaluate(()=>window.calls.length);
+  page.once('dialog',dialog=>dialog.dismiss());
+  await unit('pump').locator('[data-reset-hours]').click();
+  assert.equal(await page.evaluate(()=>window.calls.length),beforeCancel);
+  // UV service has an icon at UV, but not an invented alarm at other units.
+  await echo(`binary_sensor.${prefix}_uv_c_service_paakraevet`,'on');
+  assert.equal(await page.locator('[data-alarm-unit="uv"]').count(),1);
+  assert.equal(await page.locator('[data-alarm-unit="pump"]').count(),0);
+  await page.locator('[data-alarm-unit="uv"]').click();
+  assert.equal(await page.locator('.alarm-dialog').evaluate(el=>el.open),true);
+  assert.match(await page.locator('.alarm-dialog').textContent(),/servicegrænsen er 8000 timer/);
+  await echo(`sensor.${prefix}_vandstand`,'94');
+  assert.equal(await page.locator('.alarm-dialog').evaluate(el=>el.open),true);
+  await page.locator('[data-close-alarm]').click();
+  await echo(`binary_sensor.${prefix}_uv_c_service_paakraevet`,'off');
+  assert.equal(await page.locator('[data-alarm-unit="uv"]').count(),0);
+  // A shared relay communication alarm marks all four affected outputs.
+  await echo(`binary_sensor.${prefix}_fejl_relaemodul`,'on');
+  assert.equal(await page.locator('[data-alarm-unit]').count(),4);
+  await page.locator('[data-alarm-unit="aer"]').focus();
+  await page.keyboard.press('Enter');
+  assert.match(await page.locator('.alarm-dialog').textContent(),/fælles controlleralarm/);
+  await page.locator('[data-close-alarm]').click();
+  await echo(`binary_sensor.${prefix}_fejl_relaemodul`,'off');
+  assert.equal(await page.locator('[data-alarm-unit]').count(),0);
   await edit(`number.${prefix}_skimmer_genstartmargin_inden_for_vandstandsinterval`,'3');
   assert.deepEqual(await last(),['number','set_value',{entity_id:`number.${prefix}_skimmer_genstartmargin_inden_for_vandstandsinterval`,value:3}]);
   await page.evaluate(()=>{window.beforeInvalid=window.calls.length;window.card.sendEntity('number.garden_pond_controller_skimmer_tidsplan_koeretid_pr_start','number',-1);});
@@ -93,6 +128,8 @@ try {
   // Reset to representative standard settings for visual QA.
   await page.evaluate(states=>{window.card.error='';window.card.hass={...window.card._hass,states};},await controllerStates());
   await echo(`select.${prefix}_skimmer_tidsplan_type`,'Ugeplan');
+  await echo(`binary_sensor.${prefix}_uv_c_service_paakraevet`,'on');
+  await echo(`sensor.${prefix}_uv_c_drift_total`,'8001');
   await page.evaluate(()=>{window.card.style.height=window.card.shadowRoot.querySelector('ha-card').scrollHeight+'px';window.card.shadowRoot.querySelector('ha-card').scrollTop=0;window.scrollTo(0,0);});
   await page.screenshot({path:'preview-controls.png',fullPage:true});
   await page.setViewportSize({width:390,height:900});

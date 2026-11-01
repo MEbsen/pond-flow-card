@@ -23,13 +23,13 @@ def expression(name, **values):
     return bool(eval(text,{'__builtins__':{}},values))
 
 class ControllerRules(unittest.TestCase):
-    def test_air_winter_policy_and_manual_modes(self):
-        for winter,policy,scheduled,mode in itertools.product([False,True],range(3),[False,True],range(3)):
-            with self.subTest(winter=winter,policy=policy,scheduled=scheduled,mode=mode):
-                auto=expression('aer_auto',winter=winter,winter_policy=policy,aer_scheduled=scheduled)
-                result=expression('aer',am=mode,aer_auto=auto)
-                expected=(mode==1) or (mode==0 and (scheduled if not winter or policy==1 else policy==0))
-                self.assertEqual(result,expected)
+    def test_air_season_plans_and_manual_modes(self):
+        for winter,plan,window,mode in itertools.product([False,True],range(5),[False,True],range(3)):
+            scheduled=(winter if plan==3 else not winter if plan==4 else True if plan==0 else window)
+            auto=expression('aer_auto',aer_scheduled=scheduled)
+            result=expression('aer',am=mode,aer_auto=auto)
+            self.assertEqual(result,mode==1 or (mode==0 and scheduled))
+        self.assertIn('const bool allowed=plan==3 ? winter : !winter;',SOURCE)
     def test_filter_manual_on_never_bypasses_safety(self):
         for safe,mode,scheduled in itertools.product([False,True],range(3),[False,True]):
             result=expression('pump',safe=safe,pm=mode,pump_scheduled=scheduled)
@@ -52,12 +52,15 @@ class ControllerRules(unittest.TestCase):
                 block=re.search(r'    id: '+prefix+'_'+suffix+r'\n(.*?)(?=  - platform:|\Z)',SOURCE,re.S).group(1)
                 self.assertRegex(block,r'initial_value: '+value+r'\n')
             block=re.search(r'    id: '+prefix+r'_schedule\n(.*?)(?=  - platform:|\Z)',SOURCE,re.S).group(1)
-            self.assertIn('initial_option: "Gentag med interval"',block)
+            self.assertIn('initial_option: "'+('Gentag med interval' if prefix=='skimmer' else 'Vinter')+'"',block)
         for prefix in ['pump','skimmer','aer','uv']:
             self.assertIn(prefix+'_control_reason',ids)
             self.assertIn(prefix+'_auto_rule',ids)
         self.assertIn('sensor_timeout_seconds',ids)
-        self.assertIn('am==0 && (!winter || winter_policy==1)',SOURCE)
+        self.assertIn('id(aer_schedule)), am==0,',SOURCE)
+        self.assertNotIn('winter_policy',SOURCE)
+        self.assertIn('initial_option: "Vinter"',SOURCE)
+        self.assertNotIn('aer_season_policy',SOURCE)
         self.assertNotIn('level_margin',SOURCE)
         for line in SOURCE.splitlines():
             if re.match(r'\s*(key|password):',line):

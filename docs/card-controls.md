@@ -1,4 +1,4 @@
-# Betjening i Pond Flow Card 0.7.0
+# Betjening i Pond Flow Card 0.7.1
 
 ## Hvert område svarer til én controllerudgang
 
@@ -7,7 +7,7 @@
 - **Interval**: køretid pr. start, timer og ekstra minutter mellem starter; en knap kan starte intervalfasen forfra.
 - **Ugeplan**: syv ugedagsknapper, tre individuelle startaktiveringer og tre HH:MM-felter. Køretiden er fælles for udgangens tre starter, som i controlleren. Der er ingen separat pr.-start-varighed i den nuværende firmware.
 - **Sikkerhed/service**: filterminimum, skimmerens min./maks./margin/temperatur og UV-servicegrænse står ved deres enheder.
-- **Luftpumpens vintervalg**: Konstant drift, Følg tidsplan eller Slukket.
+- **Luftpumpens sæsonplaner**: Vinter eller Sommer vælges direkte som Auto-plan. Konstant drift dækker begge. Der er ikke et ekstra sæsonfilter. Dette kræver controller-YAML til 0.7.1.
 
 Sæsonikonet åbner fire temperaturgrænser plus fælles sensorhøjde og sensor-timeout. Det er ikke en manuel tvangsskiftning mellem sommer og vinter.
 
@@ -34,3 +34,9 @@ Live betyder tilgængelige controller-målinger og last_reported inden for to mi
 ## Verifikation
 
 Browserregressionerne dækker de eksisterende animationer, mobilbredde og servicepayloads. En separat suite bruger navnene og standardopsætningen fra esphome/pond-controller-v2.yaml og kontrollerer alle fire enheders drift, planer, køretider, ugedage, alle tre starter, vintervalg, sikkerhedsfelter, indtastningsbevarelse, resetknapper og forbindelsestilstande. Kør npm run test:browser. Testene benytter eksempeldata og ændrer ikke en rigtig HA-installation.
+
+## Timer og alarmikoner
+
+Nulstil timer findes ved hver enhed. Bekræft dialogen for kun at nulstille denne enheds tæller; afvisning sender ingen service. Det bruger button.press og kræver ingen ny firmware i sig selv. Efter et UV-pæreskift nulstilles UV-timerne; det fjerner servicealarmen. Værdien i HA følger næste opdatering fra controlleren.
+
+Alarmikoner er kun synlige ved aktive alarm-entiteter (on). UV-service vises ved UV; lavt vand ved filter og UV; skimmerspærring ved skimmer. Fælles relæ-/indstillings-/sensor-/urfejl kan markeres ved flere enheder. Popupteksten angiver fælles controlleralarmer særskilt, fordi den nuværende firmware ikke altid kan henføre en sådan fejl til én udgang. Ingen nye fysiske fejlmålinger opfindes. Ikoner understøtter klik, Enter og mellemrum. En åben besked opdateres ved nye HA-data.

@@ -1,5 +1,12 @@
 # Pond Flow Card
 
+## Version 0.7.1 – timenulstilling, sæsonplan og alarmikoner
+
+Hver enhed har nu **Nulstil timer** med bekræftelse. Aktive alarmer giver et klikbart ikon ved den relevante enhed i diagrammet; en tekstbesked viser alarmen og eventuel UV-serviceinformation. Fælles controlleralarmer er mærket som fælles.
+
+Luftpumpens Auto-plan har nu **Vinter** og **Sommer** ud over Konstant drift, Interval og Ugeplan. Vinter betyder konstant drift i vintertilstand og slukket i sommertilstand; Sommer virker omvendt. Konstant drift dækker begge. Det kræver upload af den opdaterede [controller-YAML](esphome/pond-controller-v2.yaml). Vælg derefter **Auto → Vinter** for den ønskede vinterdrift. Kortet viser den gamle vinterstyring på ældre firmware, men kan ikke tilføje sæsonplanen uden firmwareopdateringen. Tællerne bevares.
+
+
 ## Version 0.7.0 – betjening samlet ved hver enhed
 
 Diagrammet viser målingerne uden de tidligere ekstra målefelter. Skimmerens undertitel viser kun status. Sommer/vinter vises med sol/sne tæt ved diagrammet; klik åbner controllerens temperaturgrænser. Det ændrer grænserne, ikke et manuelt sæsonvalg.

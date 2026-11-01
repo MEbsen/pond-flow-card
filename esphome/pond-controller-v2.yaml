@@ -292,7 +292,6 @@ interval:
           const int pm = mode(id(pump_mode));
           const int sm = mode(id(skimmer_mode));
           const int am = mode(id(aerator_mode));
-          const int winter_policy = mode(id(aer_winter_policy));
           const int um = mode(id(uv_mode));
           if (level_ok && skim_config) {
             if (level<id(skimmer_min).state || level>id(skimmer_max).state)
@@ -313,6 +312,12 @@ interval:
               uint32_t &phase, bool &started, bool &reset, std::string &summary) -> bool {
             if(reset) {started=false; reset=false;}
             if(plan==0) {started=false; summary="Konstant drift valgt - styrings- og sikkerhedsregler gaelder stadig"; return true;}
+            if(plan==3 || plan==4) {
+              started=false;
+              const bool allowed=plan==3 ? winter : !winter;
+              summary=std::string(plan==3 ? "Vinterplan" : "Sommerplan")+(allowed ? ": konstant drift i aktiv saeson" : ": slukket uden for valgt saeson");
+              return allowed;
+            }
             const uint32_t duration=(uint32_t)(run_minutes*60.0f);
             if(plan==1) {
               const uint32_t period=(uint32_t)(every_hours*3600.0f+every_minutes*60.0f);
@@ -387,7 +392,7 @@ interval:
           if(id(skimmer_plan_summary).state!=skimmer_summary) id(skimmer_plan_summary).publish_state(skimmer_summary);
           std::string aer_summary;
           const uint8_t aer_days=(id(aer_day_sun).state ? 1 : 0) | (id(aer_day_mon).state ? 2 : 0) | (id(aer_day_tue).state ? 4 : 0) | (id(aer_day_wed).state ? 8 : 0) | (id(aer_day_thu).state ? 16 : 0) | (id(aer_day_fri).state ? 32 : 0) | (id(aer_day_sat).state ? 64 : 0);
-          const bool aer_scheduled=evaluate_plan(mode(id(aer_schedule)), am==0 && (!winter || winter_policy==1),
+          const bool aer_scheduled=evaluate_plan(mode(id(aer_schedule)), am==0,
             id(aer_run_minutes).state,id(aer_every_hours).state,id(aer_every_minutes).state,aer_days,
             id(aer_slot1_enabled).state,id(aer_start1).state,
             id(aer_slot2_enabled).state,id(aer_start2).state,
@@ -408,8 +413,8 @@ interval:
           alarm(id(clock_fault), schedule_clock_fault, "FEJL: ugeplan mangler tid", "Ur OK eller ikke paakraevet");
           const bool pump=safe && (pm==1 || (pm==0 && pump_scheduled));
           const bool uv=pump && (um==1 || (um==0 && uv_scheduled));
-          // Winter behaviour is an explicit setting, not a hidden override.
-          const bool aer_auto=winter ? (winter_policy==0 || (winter_policy==1 && aer_scheduled)) : aer_scheduled;
+          // Vinter/Sommer are explicit schedule choices; no separate seasonal override.
+          const bool aer_auto=aer_scheduled;
           const bool aer=am==1 || (am==0 && aer_auto);
           const bool requested=sm==1 || (sm==0 && skimmer_scheduled);
           const bool skim=requested && skim_safe;
@@ -420,9 +425,7 @@ interval:
           publish_text(id(pump_auto_rule), "Auto = sommer + vandstand over minimum + valgt tidsplan. Til = uden tidsplan; sikkerhed gaelder. Fra = slukket.");
           publish_text(id(skimmer_auto_rule), "Auto = valgt tidsplan + sikkert vandstandsinterval/margin + overfladetemperatur. Til springer kun tidsplanen over. Fra = slukket.");
           publish_text(id(uv_auto_rule), "Auto = filterpumpe taendt + UV-tidsplan. Til springer kun UV-tidsplanen over. UV kraever altid filterpumpen. Fra = slukket.");
-          std::string air_rule="Auto: sommer = valgt tidsplan; vinter = ";
-          air_rule+=winter_policy==0 ? "Konstant drift" : winter_policy==1 ? "Foelg tidsplan" : "Slukket";
-          air_rule+=". Til/Fra overstyrer begge aarstider. Ingen vandstandsbeskyttelse paa denne udgang.";
+          std::string air_rule="Auto = valgt plan. Vinter/Sommer: konstant drift kun i den valgte temperaturtilstand. Konstant drift: hele aaret. Til/Fra overstyrer planen.";
           publish_text(id(aer_auto_rule),air_rule);
           std::string pump_reason;
           if(pm==2) pump_reason="Manuelt slukket";
@@ -443,9 +446,7 @@ interval:
           std::string air_reason;
           if(am==2) air_reason="Manuelt slukket - ogsaa om vinteren";
           else if(am==1) air_reason="Manuelt taendt - vinterstyring og tidsplan ignoreres";
-          else if(winter && winter_policy==0) air_reason="Auto: vinterstyring er Konstant drift; tidsplan bruges kun om sommeren";
-          else if(winter && winter_policy==2) air_reason="Auto: vinterstyring er Slukket";
-          else air_reason=std::string("Auto: ")+(winter ? "vinter" : "sommer")+(aer ? ", tidsplan tillader drift" : ", tidsplan tillader ikke drift; se tidsplanoversigt");
+          else air_reason=std::string("Auto: ")+(winter ? "vinter" : "sommer")+(aer ? ", valgt plan tillader drift" : ", valgt plan tillader ikke drift; se tidsplanoversigt");
           std::string uv_reason;
           if(um==2) uv_reason="Manuelt slukket";
           else if(!pump) uv_reason="Stoppet: filterpumpen er slukket";
@@ -730,7 +731,7 @@ text_sensor:
     name: "Tidsplan - valgene forklaret"
     update_interval: 30s
     lambda: |-
-      return std::string("Konstant drift: tillad drift hele tiden, naar styring/sikkerhed tillader det. Interval: koeretid hver valgt periode. Ugeplan: koeretid fra valgte starter/dage. Tidsplan omgaer aldrig sikkerhed.");
+      return std::string("Konstant drift: hele tiden. Interval: koeretid hver periode. Ugeplan: valgte starter/dage. Luftpumpe Vinter/Sommer: kun valgt temperaturtilstand. Styring/sikkerhed gaelder altid.");
     web_server:
       sorting_group_id: group_climate
       sorting_weight: 2
@@ -800,8 +801,8 @@ select:
     name: "Luftpumpe tidsplan - type"
     optimistic: true
     restore_value: true
-    options: ["Konstant drift", "Gentag med interval", "Ugeplan"]
-    initial_option: "Gentag med interval"
+    options: ["Konstant drift", "Gentag med interval", "Ugeplan", "Vinter", "Sommer"]
+    initial_option: "Vinter"
     web_server:
       sorting_group_id: group_aer
       sorting_weight: 10
@@ -815,16 +816,6 @@ select:
     web_server:
       sorting_group_id: group_uv
       sorting_weight: 10
-  - platform: template
-    id: aer_winter_policy
-    name: "Luftpumpe Auto - vinterstyring"
-    optimistic: true
-    restore_value: true
-    options: ["Konstant drift", "Foelg tidsplan", "Slukket"]
-    initial_option: "Konstant drift"
-    web_server:
-      sorting_group_id: group_aer
-      sorting_weight: 5
 number:
   - platform: template
     id: sensor_height

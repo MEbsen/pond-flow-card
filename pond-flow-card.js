@@ -15,7 +15,7 @@ function patchNode(current, next) {
   }
   if (current.nodeType === Node.ELEMENT_NODE) {
     for (const attr of [...current.attributes]) {
-      if (!next.hasAttribute(attr.name) && !(current.localName === 'details' && attr.name === 'open')) current.removeAttribute(attr.name);
+      if (!next.hasAttribute(attr.name) && !(['details','dialog'].includes(current.localName) && attr.name === 'open')) current.removeAttribute(attr.name);
     }
     for (const attr of next.attributes) {
       if (current.getAttribute(attr.name) !== attr.value) current.setAttribute(attr.name, attr.value);
@@ -200,8 +200,8 @@ class PondFlowCard extends HTMLElement {
   choiceButtons(key, caption) {
     const state=this.state(key),demo=this.config.demo===true;
     const isMode=key.endsWith('_mode');
-    const options=state?.attributes.options || (demo ? isMode ? ['Auto','Til','Fra'] : ['Konstant drift','Gentag med interval','Ugeplan'] : []);
-    const selected=state?.state || (demo ? isMode ? 'Auto' : key==='skimmer_plan' || key==='aerator_plan' ? 'Gentag med interval' : 'Konstant drift' : '');
+    const options=state?.attributes.options || (demo ? isMode ? ['Auto','Til','Fra'] : key==='aerator_plan' ? ['Konstant drift','Gentag med interval','Ugeplan','Vinter','Sommer'] : ['Konstant drift','Gentag med interval','Ugeplan'] : []);
+    const selected=state?.state || (demo ? isMode ? 'Auto' : key==='skimmer_plan' ? 'Gentag med interval' : key==='aerator_plan' ? 'Vinter' : 'Konstant drift' : '');
     const display=option=>({'Uden tidsplan':'Konstant drift','Gentag med interval':'Interval','Interval':'Interval','Til':'Til','Fra':'Fra'}[option] || option);
     return `<div class="choice"><span class="field-title">${esc(caption)}</span><div class="options">${options.map(option=>`<button type="button" data-key="${key}" data-option="${esc(option)}" aria-pressed="${selected===option}" ${demo || !this.usable(state) ? 'disabled' : ''}>${esc(display(option))}</button>`).join('') || '<small class="missing">Ikke tilgængelig på controlleren</small>'}</div></div>`;
   }
@@ -209,23 +209,26 @@ class PondFlowCard extends HTMLElement {
     const {id,name,key}=unit,demo=this.config.demo===true;
     const running=this.state(key+'_running');
     const status=demo ? id==='aer'?'Stoppet':'Kører' : !this.usable(running) ? 'Ukendt' : running.state==='on' ? 'Kører':'Stoppet';
-    const planKey=key+'_plan',plan=this.state(planKey)?.state || (demo ? ['skimmer','aer'].includes(id)?'Gentag med interval':'Konstant drift' : '');
+    const planKey=key+'_plan',plan=this.state(planKey)?.state || (demo ? id==='skimmer'?'Gentag med interval':id==='aer'?'Vinter':'Konstant drift' : '');
     const interval=['Gentag med interval','Interval'].includes(plan),week=plan==='Ugeplan';
     const number=(suffix,title,sample,unit='')=>this.inputField('number',`${name} tidsplan - ${suffix}`,title,`${id}_${slug(suffix)}`,sample,unit);
     const reason=this.named('sensor',`${name} aktuel styring`,id+'_reason').state;
     const hours=this.state(key+'_hours');
     const caption=demo?'2,5 h':this.usable(hours)?this.value(key+'_hours'):'—';
     const airWinter=this.named('select','Luftpumpe Auto - vinterstyring','aer_winter_policy');
-    const help=id==='pump'?'Auto følger planen, sommerdrift og minimumsvandstand.':id==='skimmer'?'Auto følger planen, vandstandsintervallet og temperaturgrænsen.':id==='uv'?'Auto følger planen. UV kræver altid en tændt filterpumpe.':'Auto følger planen om sommeren og det valgte vintervalg om vinteren.';
+    const reset=this.named('button',`Nulstil ${name} driftstimer`,id+'_reset_hours');
+    const help=id==='pump'?'Auto følger planen, sommerdrift og minimumsvandstand.':id==='skimmer'?'Auto følger planen, vandstandsintervallet og temperaturgrænsen.':id==='uv'?'Auto følger planen. UV kræver altid en tændt filterpumpe.':(this.state('aerator_plan')?.attributes.options?.includes('Vinter')?'Auto følger kun den valgte plan. Vinter/Sommer følger controllerens temperaturtilstand.':'Vinter-/sommerplan kræver ny controller-YAML; den tidligere vinterstyring vises nedenfor.');
     let safety='';
     if(id==='pump') safety=this.inputField('number','Filterpumpe stop under vandstand','Minimumsvandstand','critical_level',75,'cm');
     if(id==='skimmer') safety=this.inputField('number','Skimmer minimum vandstand','Minimum','skimmer_min',90,'cm')+this.inputField('number','Skimmer maksimum vandstand','Maksimum','skimmer_max',100,'cm')+this.inputField('number','Skimmer genstartmargin inden for vandstandsinterval','Genstartmargin','skimmer_margin',2,'cm')+this.inputField('number','Skimmer stop under overfladetemperatur','Stop under overfladetemperatur','skimmer_temp',0,'°C');
     if(id==='uv') safety=this.inputField('number','UV-C servicegraense','Pæreskift efter','uv_service_hours',8000,'h');
-    return `<section class="unit" data-section="unit-${id}" aria-label="${name} opsætning"><div class="unit-heading"><h3>${name}</h3><span class="run-state ${status==='Kører'?'on':''}">${status}</span></div><small class="runtime" data-info="${key}_hours">${esc(caption)} i alt</small>
-      ${this.choiceButtons(key+'_mode','Drift')}<p class="unit-help">${help} ${id==='aer'?'Til/Fra overstyrer også vintervalget.':'Til springer planen over; sikkerhed gælder. Fra slukker.'}</p>
+    return `<section class="unit" data-section="unit-${id}" aria-label="${name} opsætning"><div class="unit-heading"><h3>${name}</h3><span class="run-state ${status==='Kører'?'on':''}">${status}</span></div><div class="runtime-row"><small class="runtime" data-info="${key}_hours">${esc(caption)} i alt</small><button type="button" class="reset-hours" data-reset-hours="${esc(reset.id)}" data-unit-name="${name}" ${demo || !this.buttonUsable(reset.state)?'disabled':''}>Nulstil timer</button></div>
+      ${this.choiceButtons(key+'_mode','Drift')}<p class="unit-help">${help} ${id==='aer'?'Til/Fra overstyrer også vinter-/sommerplanen.':'Til springer planen over; sikkerhed gælder. Fra slukker.'}</p>
       ${reason ? `<p class="decision" data-entity="${esc(this.named('sensor',`${name} aktuel styring`,id+'_reason').id)}">${esc(reason.state)}</p>`:''}
       ${this.choiceButtons(planKey,'Auto-plan')}
-      ${plan && !interval && !week ? '<p class="plan-note">Konstant drift: planen tillader drift hele tiden. Styrings- og sikkerhedsregler gælder stadig.</p>':''}
+      ${id==='aer' && !this.state('aerator_plan')?.attributes.options?.includes('Vinter') && airWinter.state ? `<div class="choice legacy-winter"><span class="field-title">Tidligere vinterstyring</span><div class="options">${airWinter.state.attributes.options.map(option=>`<button type="button" data-direct-select="${esc(airWinter.id)}" data-value="${esc(option)}" aria-pressed="${option===airWinter.state.state}" ${!this.usable(airWinter.state)?'disabled':''}>${esc(option==='Foelg tidsplan'?'Følg tidsplan':option)}</button>`).join('')}</div><p class="plan-note">Upload den nye YAML for at få Vinter/Sommer direkte som Auto-plan.</p></div>`:''}
+      ${['Konstant drift','Uden tidsplan'].includes(plan) ? '<p class="plan-note">Konstant drift: planen tillader drift hele tiden. Styrings- og sikkerhedsregler gælder stadig.</p>':''}
+      ${['Vinter','Sommer'].includes(plan) ? `<p class="plan-note">${plan}: konstant drift i ${plan==='Vinter'?'vintertilstand':'sommertilstand'}, slukket i den anden tilstand. Skiftet styres af temperaturgrænserne ved sæsonikonet.</p>`:''}
       ${interval || week ? `<div class="fields">${number('Koeretid pr start','Køretid pr. start',15,'min')}</div>`:''}
       ${interval ? `<div class="fields">${number('Gentag hver - timer','Gentag hver',6,'timer')}${number('Gentag hver - ekstra minutter','Ekstra minutter',0,'min')}</div><p class="plan-note">Intervallet måles fra start til start.</p><button type="button" class="subtle" data-press="${esc(this.named('button',`${name} interval - start forfra nu`).id)}" ${demo || !this.buttonUsable(this.named('button',`${name} interval - start forfra nu`).state)?'disabled':''}>Start interval forfra nu</button>`:''}
       ${week ? `<div class="weekdays" aria-label="${name} ugedage">${[['Mandag','Man'],['Tirsdag','Tir'],['Onsdag','Ons'],['Torsdag','Tor'],['Fredag','Fre'],['Loerdag','Lør'],['Soendag','Søn']].map(([day,label])=>{
@@ -235,9 +238,25 @@ class PondFlowCard extends HTMLElement {
         const enabled=this.named('switch',`${name} ugeplan - start ${i} aktiv`);
         return `<div class="slot"><button type="button" data-switch="${esc(enabled.id)}" aria-pressed="${demo?i===1:enabled.state?.state==='on'}" ${demo || !this.usable(enabled.state)?'disabled':''}>Start ${i} · ${demo?i===1?'Til':'Fra':enabled.state?.state==='on'?'Til':'Fra'}</button>${this.inputField('text',`${name} ugeplan - start ${i} HH:MM`,`Starttid ${i}`,`${id}_start${i}`,['08:00','13:00','18:00'][i-1],'','time')}</div>`;
       }).join('')}</div><p class="plan-note">Alle tre starter bruger køretiden ovenfor. Et vindue må fortsætte over midnat.</p>`:''}
-      ${id==='aer' ? `<div class="choice"><span class="field-title">Auto om vinteren</span><div class="options">${(airWinter.state?.attributes.options || (demo?['Konstant drift','Foelg tidsplan','Slukket']:[])).map(option=>`<button type="button" data-direct-select="${esc(airWinter.id)}" data-value="${esc(option)}" aria-pressed="${option===(airWinter.state?.state || 'Konstant drift')}" ${demo || !this.usable(airWinter.state)?'disabled':''}>${esc(option==='Foelg tidsplan'?'Følg tidsplan':option)}</button>`).join('') || '<small>Vintervalget er ikke tilgængeligt på controlleren.</small>'}</div></div>`:''}
       ${safety?`<div class="safety"><h4>${id==='uv'?'Service':'Sikkerhedsgrænser'}</h4><div class="fields">${safety}</div></div>`:''}
     </section>`;
+  }
+  unitAlarms(id) {
+    // Shared alarms are identified as shared; they do not prove device failure.
+    const keys={pump:['low_water','level_fault','temp_fault','relay_fault','settings_fault','schedule_fault'],uv:['uv_service','low_water','level_fault','temp_fault','relay_fault','settings_fault','schedule_fault'],skimmer:['skimmer_locked','level_fault','temp_fault','relay_fault','settings_fault','schedule_fault'],aer:['temp_fault','relay_fault','settings_fault','schedule_fault']}[id] || [];
+    return keys.filter(key=>this.state(key)?.state==='on').map(key=>({key,label:labels[key]+(['temp_fault','relay_fault','settings_fault','schedule_fault'].includes(key)?' (fælles controlleralarm)':'')}));
+  }
+  alarmBadge(id,x,y) {
+    const alarms=this.unitAlarms(id);
+    if(!alarms.length) return '';
+    const name={pump:'Filterpumpe',uv:'UV-C',aer:'Luftpumpe',skimmer:'Skimmer'}[id];
+    return `<g class="diagram-alarm" data-alarm-unit="${id}" data-section="alarm-${id}" role="button" tabindex="0" aria-label="${name}: ${alarms.length} alarm${alarms.length>1?'er':''}. Klik for besked" transform="translate(${x} ${y})"><title>${name}: ${alarms.map(a=>esc(a.label)).join('; ')}</title><circle r="14"/><path d="M0 -7V2M0 6V7"/></g>`;
+  }
+  alarmDialog() {
+    const name={pump:'Filterpumpe',uv:'UV-C',aer:'Luftpumpe',skimmer:'Skimmer'}[this.alarmUnit] || 'Alarmer';
+    const alarms=this.unitAlarms(this.alarmUnit);
+    const service=this.state('uv_hours'),limit=this.named('number','UV-C servicegraense','uv_service_hours').state;
+    return `<dialog class="alarm-dialog" data-section="alarm-dialog" aria-label="${name} alarmer"><h3>${name}</h3>${alarms.length?`<ul>${alarms.map(a=>`<li>${esc(a.label)}${a.key==='uv_service' && this.usable(service)?`<p>UV har kørt ${esc(this.value('uv_hours'))}${this.usable(limit)?' og servicegrænsen er '+esc(limit.state)+' timer':''}. Kontrollér pæren. Efter udskiftning kan UV-timerne nulstilles i UV-området.</p>`:''}</li>`).join('')}</ul>`:'<p>Ingen aktuelle alarmer.</p>'}<p class="note">Fælles controlleralarmer vises ved relevante enheder. Ikonet er ikke en måling af fysisk udstyrssvigt.</p><button type="button" data-close-alarm>Luk</button></dialog>`;
   }
   climatePanel() {
     const demo=this.config.demo===true;
@@ -324,6 +343,7 @@ class PondFlowCard extends HTMLElement {
       .units{gap:14px;align-items:start;padding-top:8px;grid-template-columns:repeat(2,minmax(0,1fr))}.unit{border:1px solid #7196a540;background:#7396a40b;border-radius:16px;padding:16px;min-width:0}.unit-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.unit h3{font-size:17px;margin:0}.run-state{font-size:12px;white-space:nowrap;background:#87999b18;border-radius:20px;padding:5px 9px}.run-state.on{color:#9ae0bd;background:#4a927630}.run-state:before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:6px}.runtime{display:block;margin:6px 0 14px;font-size:11px;opacity:.65}.choice{margin:12px 0}.field-title{display:block;font-size:12px;font-weight:600;margin-bottom:7px}.units .options{justify-content:flex-start;gap:5px}.units button{font:inherit;font-size:12px;padding:8px 10px;min-height:36px}.units button[aria-pressed=true]{background:#438b8b55;border-color:#6db0ac}.units button:disabled,.field input:disabled{opacity:.45;cursor:default}.unit-help,.plan-note{font-size:11px;line-height:1.5;opacity:.72;margin:7px 0 10px}.decision{font-size:12px;line-height:1.5;padding:9px 10px;border-left:2px solid #6b9c96;background:#7396a40b;margin:10px 0}
       .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0}.field{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:11px}.field input{box-sizing:border-box;width:100%;min-width:0;max-width:100%;border:1px solid #7196a550;border-radius:8px;background:var(--card-background-color,#1c2328);color:inherit;font:inherit;font-size:14px;min-height:38px;padding:8px;color-scheme:dark}.field input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid #7ecac2;outline-offset:2px}.missing{font-size:10px;opacity:.65}.weekdays{display:flex;gap:4px;flex-wrap:wrap;margin:12px 0}.weekdays button{flex:1;min-width:32px;padding:7px 4px}.slots{display:grid;gap:8px}.slot{display:grid;grid-template-columns:minmax(90px,1fr) minmax(0,1fr);gap:12px;align-items:end}.slot>.field{margin:0}.safety{border-top:1px solid #7196a530;margin-top:14px;padding-top:2px}.safety h4{font-size:12px;margin:12px 0 8px}.subtle{opacity:.8}
       @container(max-width:740px){.units{grid-template-columns:1fr}.season-panel{margin:0 14px}.unit{padding:14px}.fields{gap:8px}}@container(max-width:350px){.season-edit{display:none}.connection-label{max-width:120px}.fields{grid-template-columns:1fr}}
+      .runtime-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 12px}.runtime-row .runtime{margin:0}.units .reset-hours{font-size:11px;min-height:28px;padding:4px 8px;opacity:.8}.diagram-alarm{cursor:pointer}.diagram-alarm circle{fill:#b74a37;stroke:#ffc4aa;stroke-width:1.5}.diagram-alarm path{fill:none;stroke:white;stroke-width:2.5;stroke-linecap:round}.diagram-alarm:focus-visible circle{stroke:white;stroke-width:3}.alarm-dialog{max-width:min(440px,calc(100vw - 50px));box-sizing:border-box;padding:22px;border:1px solid #7196a570;border-radius:16px;background:var(--ha-card-background,#1c2328);color:var(--primary-text-color,#edf6f5);font:inherit}.alarm-dialog::backdrop{background:#0008}.alarm-dialog li{margin:12px 0;font-size:14px;line-height:1.5}.alarm-dialog li p{font-size:13px;opacity:.85}.alarm-dialog button{padding:9px 20px;border:1px solid #7196a570;border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
     </style>
     <ha-card>
       <header data-section="header"><div><small>HAVENS VANDKREDSLØB</small><h2>${esc(this.config.title || 'Dammen')}</h2></div><span class="connection" data-connection role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8a14 14 0 0 1 18 0M6 12a9 9 0 0 1 12 0M9 16a4 4 0 0 1 6 0"/><circle cx="12" cy="20" r="1"/></svg><span class="connection-label"></span></span></header>
@@ -407,13 +427,23 @@ class PondFlowCard extends HTMLElement {
 <path d="M115 363V${550+depth}M109 363H121M109 ${550+depth}H121" fill="none" stroke="#627d82"/><text x="104" y="453" data-info="water_level" text-anchor="end" font-size="16" font-weight="600">${val('water_level','48 cm')}</text>
 <path class="leader" d="M343 ${535+depth}V${568+depth}"/><text x="343" y="${584+depth}" text-anchor="middle" class="label">Filterpumpe</text><text x="343" y="${601+depth}" data-info="pump_running" text-anchor="middle" class="small">${esc(operating('pump_running'))}</text>
 
+${this.alarmBadge('skimmer',225,220)}${this.alarmBadge('aer',640,200)}${this.alarmBadge('pump',445,584+depth)}${this.alarmBadge('uv',1140,395)}
 </svg>
       ${[...binaryKeys].some(key => this.state(key) && this.state(key).state !== 'off') ? `<div class="equipment alarms" data-section="alarms" role="status">${[...binaryKeys].filter(key => this.state(key) && this.state(key).state !== 'off').map(key => `<button data-info="${key}" class="error"><strong>${esc(labels[key])}</strong><small>${['unknown','unavailable'].includes(this.state(key).state) ? 'Status utilgængelig' : 'Aktiv'}</small></button>`).join('')}</div>` : ''}
       <div class="controls units" data-section="controls">${[{id:'pump',name:'Filterpumpe',key:'pump'},{id:'uv',name:'UV-C',key:'uv'},{id:'aer',name:'Luftpumpe',key:'aerator'},{id:'skimmer',name:'Skimmer',key:'skimmer'}].map(unit=>this.unitPanel(unit)).join('')}</div>
       <div class="status" data-section="status">Seneste hændelse: ${val('last_event','Filterpumpe startet automatisk')}<br><span class="note">${demo ? 'Demo betjener ikke dit udstyr.' : 'Tryk på en måling eller udstyrsstatus for detaljer. Relæstatus bekræfter ikke fysisk drift.'}</span>${this.error ? `<div class="error" role="alert">${esc(this.error)}</div>` : ''}</div>
+      ${this.alarmDialog()}
     </ha-card>`;
     patchNode(this.shadowRoot,template.content);
     this.updateConnectionIndicator();
+    this.shadowRoot.querySelectorAll('[data-reset-hours]').forEach(button=>{button.onclick=()=>{if(!this.config.demo && window.confirm(`Nulstil driftstimer for ${button.dataset.unitName}? Den nuværende tæller slettes.`)) this.sendEntity(button.dataset.resetHours,'button');};});
+    this.shadowRoot.querySelectorAll('[data-alarm-unit]').forEach(button=>{
+      const open=()=>{this.alarmUnit=button.dataset.alarmUnit;this.render();this.shadowRoot.querySelector('.alarm-dialog').showModal();};
+      button.onclick=open;button.onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();open();}};
+    });
+    const alarmDialog=this.shadowRoot.querySelector('.alarm-dialog');
+    this.shadowRoot.querySelector('[data-close-alarm]').onclick=()=>alarmDialog.close();
+    alarmDialog.onclose=()=>{this.alarmUnit=null;};
     this.shadowRoot.querySelectorAll('[data-control]').forEach(input=>{
       const state=this._hass?.states[input.dataset.control];
       if(!demo && this.usable(state) && !input._editing) input.value=state.state;
